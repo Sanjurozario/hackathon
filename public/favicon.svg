@@ -1,6 +1,39 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <rect width="100" height="100" rx="20" fill="#101216"/>
-  <path d="M22 25 L45 75 L55 75 L32 25 Z" fill="#56C8D8" />
-  <path d="M78 25 L55 75 L45 75 L68 25 Z" fill="#D75A55" />
-  <circle cx="50" cy="50" r="6" fill="#F3F0E8" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#140B22" />
+      <stop offset="100%" stop-color="#08030E" />
+    </linearGradient>
+    <linearGradient id="redGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF4B72" />
+      <stop offset="100%" stop-color="#E5385D" />
+    </linearGradient>
+    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#46C7DE" />
+      <stop offset="100%" stop-color="#00A3C4" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#E5385D" flood-opacity="0.4" />
+    </filter>
+  </defs>
+
+  <!-- Dark Rounded Container with Cyber Border -->
+  <rect width="128" height="128" rx="28" fill="url(#bgGrad)" />
+  <rect x="2" y="2" width="124" height="124" rx="26" fill="none" stroke="#E5385D" stroke-opacity="0.35" stroke-width="2.5" />
+
+  <!-- Stylized Bold "H" Emblem for HACKATHON 26 -->
+  <!-- Left Pillar of H -->
+  <path d="M 28 26 L 46 26 L 46 102 L 28 102 Z" fill="#FFFFFF" />
+  <rect x="28" y="26" width="18" height="6" fill="url(#cyanGrad)" />
+
+  <!-- Right Pillar of H -->
+  <path d="M 82 26 L 100 26 L 100 102 L 82 102 Z" fill="#FFFFFF" />
+  <rect x="82" y="96" width="18" height="6" fill="url(#redGrad)" />
+
+  <!-- Crossbar of H in Crimson Flame Gradient with Glow -->
+  <path d="M 46 54 L 82 54 L 82 72 L 46 72 Z" fill="url(#redGrad)" filter="url(#glow)" />
+
+  <!-- Cyber Notch Dots -->
+  <circle cx="64" cy="38" r="4" fill="#46C7DE" />
+  <circle cx="64" cy="88" r="4" fill="#E5385D" />
 </svg>
