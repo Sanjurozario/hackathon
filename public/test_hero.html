@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Full Background Test</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    .font-bebas { font-family: 'Bebas Neue', sans-serif; }
+    .font-heading { font-family: 'Manrope', sans-serif; }
+  </style>
+</head>
+<body class="bg-[#0A0412] text-white min-h-screen m-0 p-0 overflow-x-hidden font-heading">
+
+  <!-- Top Navbar Simulation -->
+  <header class="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 py-5 bg-gradient-to-b from-[#0A0412]/90 via-[#0A0412]/40 to-transparent backdrop-blur-[2px]">
+    <div class="font-bebas text-3xl tracking-widest text-white">VX<span class="text-[#E5385D]">26</span></div>
+    <nav class="hidden md:flex items-center space-x-6 text-xs tracking-widest font-bold text-slate-300">
+      <span class="text-white border-b-2 border-[#E5385D] pb-1">HOME</span>
+      <span>EVENTS</span>
+      <span>RULES</span>
+      <span>REGISTER</span>
+    </nav>
+    <img src="/st-pauls-logo.png" alt="St Pauls" class="h-10 w-auto filter brightness-125" />
+  </header>
+
+  <!-- Fullscreen Edge-to-Edge Hero -->
+  <section class="relative w-full min-h-screen flex flex-col justify-between pt-28 pb-12 px-8 sm:px-14 lg:px-20 overflow-hidden">
+    
+    <!-- Edge-to-Edge Background System -->
+    <div class="absolute inset-0 w-full h-full -z-10 overflow-hidden pointer-events-none">
+      
+      <!-- Ambient Glow extending colors full-screen -->
+      <div 
+        class="absolute inset-0 w-full h-full bg-cover bg-center filter blur-3xl opacity-35 scale-105"
+        style="background-image: url('/Vexoris 26_ Sunset City Rush.png')"
+      ></div>
+
+      <!-- Master Background Image (NO CARD, NO BORDERS, EDGE TO EDGE) -->
+      <img
+        src="/Vexoris 26_ Sunset City Rush.png"
+        alt="VEXORIS 26 Sunset City Rush"
+        class="w-full h-auto min-h-[500px] object-cover sm:object-contain object-top select-none"
+      />
+
+      <!-- Seamless asphalt blend -->
+      <div class="absolute inset-0 bg-gradient-to-t from-[#0A0412] via-[#0A0412]/35 to-transparent"></div>
+      
+      <!-- Left readability gradient -->
+      <div class="absolute inset-0 bg-gradient-to-r from-[#0A0412]/85 via-[#0A0412]/30 to-transparent max-w-2xl"></div>
+    </div>
+
+    <!-- Spacer under navbar -->
+    <div class="h-6"></div>
+
+    <!-- Content: Exactly below VEXORIS on lower-left -->
+    <div class="relative z-10 max-w-xl text-left space-y-4">
+      <h2 class="font-bebas text-4xl sm:text-5xl md:text-6xl tracking-[0.16em] text-[#FF4B72] leading-none select-none drop-shadow-[0_2px_14px_rgba(255,75,114,0.6)]">
+        RULE THE PLAYGROUND.
+      </h2>
+      <p class="font-heading text-sm md:text-base text-slate-100 font-medium tracking-wide leading-relaxed drop-shadow-md">
+        A college fest where technology, gaming and creativity collide. Explore. Compete. Connect. Be a part of something bigger.
+      </p>
+      <div class="flex items-center gap-4 pt-2">
+        <a href="/events" class="px-8 py-3 bg-[#E5385D] hover:bg-[#F43F68] text-white font-heading font-black text-xs sm:text-sm tracking-[0.16em] uppercase rounded-full transition-all shadow-[0_4px_24px_rgba(229,56,93,0.55)]">
+          EXPLORE EVENTS &rarr;
+        </a>
+        <a href="/register" class="px-8 py-3 bg-[#1B1028]/90 hover:bg-[#28163D] border border-white/25 text-white hover:text-cyan font-heading font-bold text-xs sm:text-sm tracking-[0.16em] uppercase rounded-full transition-all backdrop-blur-md">
+          REGISTER
+        </a>
+      </div>
+    </div>
+
+    <!-- Bottom Institutional Bar -->
+    <div class="relative z-10 flex items-center justify-between text-xs font-heading font-semibold text-slate-400 tracking-wider">
+      <span>ST. PAUL'S COLLEGE &bull; BENGALURU</span>
+      <span class="text-[#FF4B72]/90">MARCH 2026</span>
+    </div>
+
+  </section>
+
+</body>
+</html>

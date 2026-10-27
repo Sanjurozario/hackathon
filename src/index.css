@@ -1,0 +1,264 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+  
+  body {
+    background-color: #101216;
+    color: #F3F0E8;
+    overflow-x: hidden;
+  }
+
+  /* Custom subtle dark scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #101216;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #232932;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #373F4D;
+  }
+}
+
+/* GTA Styled Text Effects */
+.gta-title {
+  font-family: 'Pricedown Bl', 'Pricedown', 'Bebas Neue', Impact, sans-serif;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #FFFFFF;
+  text-shadow: 
+    3px 3px 0 #000000, 
+    -2px -2px 0 #000000, 
+    2px -2px 0 #000000, 
+    -2px 2px 0 #000000, 
+    0 10px 30px rgba(229, 56, 93, 0.5);
+}
+
+.gta-highlight {
+  font-family: 'Pricedown Bl', 'Pricedown', 'Bebas Neue', Impact, sans-serif;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: linear-gradient(180deg, #FFFFFF 0%, #FFF3EB 35%, #F0E1D5 70%, #E8A8B6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 4px 18px rgba(0, 0, 0, 0.95)) drop-shadow(0 0 35px rgba(229, 56, 93, 0.45));
+}
+
+.gta-badge {
+  font-family: 'Bebas Neue', 'Teko', sans-serif;
+  letter-spacing: 0.08em;
+}
+
+/* Tactical HUD Gaming Reticle Cursor */
+@media (pointer: fine) {
+  .custom-cursor-dot {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 5px;
+    height: 5px;
+    background: #FFFFFF;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 99999;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 10px #46C7DE, 0 0 4px #FFFFFF;
+    will-change: transform;
+    transition: transform 0.08s ease-out, background-color 0.2s ease, width 0.2s, height 0.2s, box-shadow 0.2s;
+  }
+
+  .custom-cursor-dot.cursor-dot-hover {
+    width: 8px;
+    height: 8px;
+    background: #46C7DE;
+    box-shadow: 0 0 14px #46C7DE, 0 0 6px #FFFFFF;
+  }
+
+  .custom-cursor-ring {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 32px;
+    height: 32px;
+    border: 1.5px solid rgba(70, 199, 222, 0.45);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 99998;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(circle, rgba(70, 199, 222, 0.08) 0%, transparent 70%);
+    backdrop-filter: blur(0.5px);
+    transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1), 
+                height 0.22s cubic-bezier(0.16, 1, 0.3, 1), 
+                border-color 0.2s ease, 
+                background 0.2s ease,
+                box-shadow 0.2s ease,
+                transform 0.1s ease;
+    will-change: transform;
+  }
+
+  /* Reticle Notches */
+  .cursor-notch {
+    position: absolute;
+    background: #46C7DE;
+    opacity: 0.75;
+    transition: all 0.2s ease;
+  }
+  .notch-top {
+    top: -4px;
+    left: 50%;
+    width: 1.5px;
+    height: 4px;
+    transform: translateX(-50%);
+  }
+  .notch-bottom {
+    bottom: -4px;
+    left: 50%;
+    width: 1.5px;
+    height: 4px;
+    transform: translateX(-50%);
+  }
+  .notch-left {
+    left: -4px;
+    top: 50%;
+    width: 4px;
+    height: 1.5px;
+    transform: translateY(-50%);
+  }
+  .notch-right {
+    right: -4px;
+    top: 50%;
+    width: 4px;
+    height: 1.5px;
+    transform: translateY(-50%);
+  }
+
+  /* Hover Expansion */
+  .custom-cursor-ring.cursor-hover {
+    width: 52px;
+    height: 52px;
+    border-color: rgba(229, 56, 93, 0.85);
+    background: radial-gradient(circle, rgba(229, 56, 93, 0.16) 0%, rgba(70, 199, 222, 0.06) 60%, transparent 100%);
+    box-shadow: 0 0 22px rgba(229, 56, 93, 0.4);
+  }
+
+  .custom-cursor-ring.cursor-hover .cursor-notch {
+    background: #E5385D;
+    opacity: 0.9;
+  }
+
+  /* Click Tactile Compression */
+  .custom-cursor-ring.cursor-active {
+    width: 24px !important;
+    height: 24px !important;
+    border-color: #FFFFFF !important;
+    box-shadow: 0 0 20px #46C7DE !important;
+    background: rgba(70, 199, 222, 0.25) !important;
+  }
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Print-Ready Roster Styles */
+@media print {
+  body {
+    background: #FFFFFF !important;
+    color: #111111 !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    margin: 0 !important;
+    padding: 10mm !important;
+    font-size: 11pt !important;
+  }
+
+  /* Hide public navigation, footer, actions, and buttons */
+  header, nav, footer, .no-print, button, .admin-sidebar, .toast-container {
+    display: none !important;
+  }
+
+  /* Reset print container */
+  .print-container {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #FFFFFF !important;
+    color: #111111 !important;
+  }
+
+  /* Table styling */
+  table.print-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin-top: 15px !important;
+    page-break-inside: auto !important;
+  }
+
+  table.print-table thead {
+    display: table-header-group !important; /* Repeats table header on every page */
+  }
+
+  table.print-table tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto !important;
+  }
+
+  table.print-table th, table.print-table td {
+    border: 1px solid #CCCCCC !important;
+    padding: 8px 10px !important;
+    text-align: left !important;
+    font-size: 10pt !important;
+    color: #111111 !important;
+    background: #FFFFFF !important;
+  }
+
+  table.print-table th {
+    background-color: #F2F2F2 !important;
+    font-weight: bold !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+  }
+
+  .print-header {
+    border-bottom: 2px solid #111111 !important;
+    padding-bottom: 12px !important;
+    margin-bottom: 16px !important;
+  }
+}
+
+/* Clean High-Contrast Select & Dropdown Styling */
+select {
+  color-scheme: dark;
+}
+
+select option {
+  background-color: #0E131C;
+  color: #FFFFFF;
+  padding: 10px 14px;
+  font-size: 14px;
+}
+
+select optgroup {
+  background-color: #080B10;
+  color: #46C7DE;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  padding: 8px 12px;
+}
