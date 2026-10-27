@@ -64,23 +64,23 @@ export default function Hero() {
           Full-screen filled vertical wallpaper with seamless flow into feed below
       ========================================================================= */}
       <section className="md:hidden relative w-full h-[100dvh] min-h-[100dvh] flex flex-col justify-end overflow-hidden bg-[#0A0412] select-none">
-        {/* Full-bleed vertical background filling the screen completely */}
+        {/* Full-bleed vertical background filling the screen completely with reduced opacity */}
         <div 
-          className="absolute inset-0 w-full h-full bg-cover bg-center bg-no-repeat"
+          className="absolute inset-0 w-full h-full bg-cover bg-center bg-no-repeat opacity-80"
           style={{ backgroundImage: `url('/hackathon-mobile-hero.jpg')` }}
         />
 
-        {/* Subtle bottom gradient to highlight CTAs on the lower asphalt road */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0A0412] via-[#0A0412]/35 to-transparent pointer-events-none z-10" />
+        {/* Soft atmospheric overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0A0412] via-[#0A0412]/40 to-black/20 pointer-events-none z-10" />
 
-        {/* Mobile Action Controls & Scroll Prompt */}
-        <div className="relative z-20 pb-8 px-5 flex flex-col items-center gap-3 w-full pointer-events-auto">
+        {/* Mobile Action Controls */}
+        <div className="relative z-20 pb-10 px-5 flex flex-col items-center gap-3 w-full pointer-events-auto">
           {/* Festival Date & Venue Pills */}
           <div className="flex items-center gap-2 flex-wrap justify-center">
-            <span className="px-3.5 py-1 rounded-full bg-black/75 backdrop-blur-md border border-cyan/50 text-[11px] font-mono text-cyan font-bold tracking-wider shadow-lg">
+            <span className="px-3.5 py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-cyan/50 text-[11px] font-mono text-cyan font-bold tracking-wider shadow-lg">
               30 OCT 2026 · 12:30 PM
             </span>
-            <span className="px-3.5 py-1 rounded-full bg-black/75 backdrop-blur-md border border-[#E5385D]/50 text-[11px] font-mono text-[#FF4B72] font-bold tracking-wider shadow-lg">
+            <span className="px-3.5 py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-[#E5385D]/50 text-[11px] font-mono text-[#FF4B72] font-bold tracking-wider shadow-lg">
               ST. PAUL'S COLLEGE
             </span>
           </div>
@@ -105,16 +105,6 @@ export default function Hero() {
               <span>REGISTER ONLINE</span>
             </Link>
           </div>
-
-          {/* Smooth Continuous Scroll Indicator */}
-          <button
-            type="button"
-            onClick={scrollToEvents}
-            className="mt-1 text-slate-300 hover:text-cyan text-[11px] font-mono tracking-widest uppercase flex items-center gap-1.5 animate-pulse bg-black/50 px-3 py-1 rounded-full backdrop-blur-sm border border-white/10"
-          >
-            <span>CONTINUOUS SCROLL FEED</span>
-            <span className="text-cyan font-bold">↓</span>
-          </button>
         </div>
       </section>
     </>
