@@ -109,21 +109,45 @@ export default function Navbar() {
       {/* Mobile Drawer Menu */}
       {isOpen && (
         <div className="md:hidden bg-[#0A0412]/98 backdrop-blur-2xl border-b border-white/10 px-6 pt-3 pb-6 space-y-2 shadow-2xl animate-in fade-in">
-          {navLinks.map((link) => (
-            <Link
-              key={link.name}
-              to={link.path}
-              onClick={() => setIsOpen(false)}
-              className={`flex items-center justify-between px-4 py-3 rounded-xl font-heading text-sm tracking-wider font-bold transition-all ${
-                isActive(link.path)
-                  ? 'bg-[#E5385D]/15 text-[#FF4B72] border-l-2 border-[#E5385D]'
-                  : 'text-slate-300 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <span>{link.name}</span>
-              <ChevronRight className="w-4 h-4 text-slate-500" />
-            </Link>
-          ))}
+          {navLinks.map((link) => {
+            const handleMobileClick = (e) => {
+              setIsOpen(false);
+              if (location.pathname === '/') {
+                if (link.path === '/events') {
+                  const el = document.getElementById('events-section');
+                  if (el) {
+                    e.preventDefault();
+                    el.scrollIntoView({ behavior: 'smooth' });
+                  }
+                } else if (link.path === '/rules') {
+                  const el = document.getElementById('rules-section');
+                  if (el) {
+                    e.preventDefault();
+                    el.scrollIntoView({ behavior: 'smooth' });
+                  }
+                } else if (link.path === '/') {
+                  e.preventDefault();
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+              }
+            };
+
+            return (
+              <Link
+                key={link.name}
+                to={link.path}
+                onClick={handleMobileClick}
+                className={`flex items-center justify-between px-4 py-3 rounded-xl font-heading text-sm tracking-wider font-bold transition-all ${
+                  isActive(link.path)
+                    ? 'bg-[#E5385D]/15 text-[#FF4B72] border-l-2 border-[#E5385D]'
+                    : 'text-slate-300 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <span>{link.name}</span>
+                <ChevronRight className="w-4 h-4 text-slate-500" />
+              </Link>
+            );
+          })}
         </div>
       )}
     </header>
