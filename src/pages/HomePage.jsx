@@ -10,7 +10,6 @@ import {
   UserCheck, 
   ChevronRight, 
   ShieldCheck, 
-  ArrowRight,
   Calendar,
   Layers,
   FileText
@@ -29,13 +28,6 @@ export default function HomePage() {
     if (selectedMobileCategory === 'All') return true;
     return e.category === selectedMobileCategory;
   });
-
-  const scrollToRules = (eventId) => {
-    const el = document.getElementById(`rules-${eventId}`) || document.getElementById('rules-section');
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
 
   return (
     <main className="relative min-h-screen w-full overflow-x-hidden bg-[#0A0412] text-white">
@@ -165,27 +157,19 @@ export default function HomePage() {
                     </span>
                   </div>
 
-                  {/* Dual Action Buttons */}
-                  <div className="pt-2 flex items-center gap-2">
+                  {/* Action Button: View Details matching desktop */}
+                  <div className="pt-2">
                     <Link
-                      to="/register"
-                      className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-4 text-xs font-heading font-black uppercase tracking-wider rounded-lg shadow-md transition-all ${
+                      to={`/events/${event.id}`}
+                      className={`w-full py-2.5 px-4 rounded-lg text-xs font-heading font-bold tracking-[0.14em] uppercase transition-all duration-200 flex items-center justify-center gap-2 ${
                         isTech 
-                          ? 'bg-cyan text-[#0B0D11] hover:bg-white' 
-                          : 'bg-[#E5385D] text-white hover:bg-[#F43F68]'
+                          ? 'bg-[#141C2B] text-cyan hover:bg-cyan hover:text-[#0B0D11] border border-cyan/30' 
+                          : 'bg-[#1C1422] text-[#FF4B72] hover:bg-[#E5385D] hover:text-white border border-[#E5385D]/30'
                       }`}
                     >
-                      <span>Register</span>
+                      <span>View Event Details</span>
                       <ChevronRight className="w-3.5 h-3.5" />
                     </Link>
-
-                    <button
-                      type="button"
-                      onClick={() => scrollToRules(event.id)}
-                      className="py-2.5 px-3.5 text-xs font-heading font-bold uppercase tracking-wider rounded-lg bg-[#182030] text-slate-300 hover:text-white border border-[#263248] transition-all flex items-center gap-1"
-                    >
-                      <span>Rules ↓</span>
-                    </button>
                   </div>
                 </div>
               );
@@ -237,21 +221,13 @@ export default function HomePage() {
                 id={`rules-${event.id}`}
                 className="bg-[#121622] border border-[#232B3D] rounded-xl p-4 shadow-lg space-y-3 scroll-mt-24"
               >
-                <div className="flex items-center justify-between gap-2 border-b border-[#1E2638] pb-2.5">
-                  <div>
-                    <span className="text-[10px] font-mono text-cyan uppercase font-bold block">
-                      {event.category} ARENA
-                    </span>
-                    <h4 className="font-heading font-black text-lg text-white uppercase tracking-wide">
-                      {event.name}
-                    </h4>
-                  </div>
-                  <Link
-                    to="/register"
-                    className="px-3 py-1.5 bg-[#E5385D] text-white text-[11px] font-heading font-bold uppercase rounded-md shadow-sm"
-                  >
-                    Register
-                  </Link>
+                <div className="border-b border-[#1E2638] pb-2.5">
+                  <span className="text-[10px] font-mono text-cyan uppercase font-bold block">
+                    {event.category} ARENA
+                  </span>
+                  <h4 className="font-heading font-black text-lg text-white uppercase tracking-wide">
+                    {event.name}
+                  </h4>
                 </div>
 
                 <ol className="space-y-1.5 pt-1">
@@ -290,16 +266,6 @@ export default function HomePage() {
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0B0E14] border border-white/10">
                 <MapPin className="w-3.5 h-3.5 text-red" /> College Campus
               </span>
-            </div>
-
-            <div className="pt-2">
-              <Link
-                to="/register"
-                className="w-full inline-flex items-center justify-center gap-2 py-3 px-6 bg-[#E5385D] hover:bg-[#F43F68] text-white font-heading font-black text-sm uppercase tracking-wider rounded-xl shadow-[0_4px_25px_rgba(229,56,93,0.5)] transition-all"
-              >
-                <span>REGISTER NOW FOR FESTIVAL</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
             </div>
           </div>
         </section>
