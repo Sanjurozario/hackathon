@@ -3,16 +3,6 @@ import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 
 export default function Hero() {
-  const scrollToEvents = (e) => {
-    e.preventDefault();
-    const el = document.getElementById('events-section');
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
-    } else {
-      window.location.href = '/events';
-    }
-  };
-
   return (
     <>
       {/* =========================================================================
@@ -61,7 +51,7 @@ export default function Hero() {
 
       {/* =========================================================================
           2. MOBILE HERO (VISIBLE ONLY ON MOBILE < md)
-          Full-screen filled vertical wallpaper with seamless flow into feed below
+          Full-screen filled vertical wallpaper without date/college pills
       ========================================================================= */}
       <section className="md:hidden relative w-full h-[100dvh] min-h-[100dvh] flex flex-col justify-end overflow-hidden bg-[#0A0412] select-none">
         {/* Full-bleed vertical background filling the screen completely with reduced opacity */}
@@ -75,27 +65,16 @@ export default function Hero() {
 
         {/* Mobile Action Controls */}
         <div className="relative z-20 pb-10 px-5 flex flex-col items-center gap-3 w-full pointer-events-auto">
-          {/* Festival Date & Venue Pills */}
-          <div className="flex items-center gap-2 flex-wrap justify-center">
-            <span className="px-3.5 py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-cyan/50 text-[11px] font-mono text-cyan font-bold tracking-wider shadow-lg">
-              30 OCT 2026 · 12:30 PM
-            </span>
-            <span className="px-3.5 py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-[#E5385D]/50 text-[11px] font-mono text-[#FF4B72] font-bold tracking-wider shadow-lg">
-              ST. PAUL'S COLLEGE
-            </span>
-          </div>
-
           {/* Action Buttons */}
           <div className="w-full flex flex-col items-center gap-2.5 max-w-xs">
-            <button
-              type="button"
-              onClick={scrollToEvents}
+            <Link
+              to="/events"
               className="w-full inline-flex items-center justify-center gap-2 py-3.5 px-6 bg-[#E5385D] hover:bg-[#F43F68] text-white font-heading font-black text-xs tracking-[0.18em] uppercase rounded-full transition-all duration-300 shadow-[0_4px_28px_rgba(229,56,93,0.7)] group"
               id="hero-mobile-primary-cta"
             >
               <span>EXPLORE 9 EVENTS</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </button>
+            </Link>
 
             <Link
               to="/register"

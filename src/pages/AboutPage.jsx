@@ -43,7 +43,7 @@ export default function AboutPage() {
               <span className="font-mono text-[10px] text-cyan uppercase tracking-wider font-bold">THE FESTIVAL</span>
               <h3 className="font-heading font-bold text-xl text-ivory">What is HACKATHON?</h3>
               <p className="text-xs text-muted leading-relaxed">
-                HACKATHON is the flagship inter-collegiate festival organized by the Department of Computer Science at St. Paul's College. It combines intellectual programming rigor with high-speed digital gaming reflexes.
+                HACKATHON is the flagship intra-collegiate festival organized by the Department of Computer Science at St. Paul's College. It combines intellectual programming rigor with high-speed digital gaming reflexes.
               </p>
             </div>
 

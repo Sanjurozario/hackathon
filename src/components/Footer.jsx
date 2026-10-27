@@ -20,7 +20,7 @@ export default function Footer() {
               </span>
             </div>
             <p className="text-[#E5385D] font-mono font-bold text-xs tracking-[0.25em] uppercase">
-              INTER-COLLEGIATE FESTIVAL
+              INTRA-COLLEGIATE FESTIVAL
             </p>
             <p className="text-slate-300 text-xs sm:text-sm leading-relaxed max-w-md font-sans">
               Uniting competitive programming logic, strategic IT management, and high-speed esports arenas in one grand championship.
