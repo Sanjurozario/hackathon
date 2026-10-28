@@ -4,7 +4,7 @@ import { OFFICIAL_EVENTS } from '../data/events.js';
 export { isSupabaseConfigured, supabase };
 
 const STORAGE_KEYS = {
-  EVENTS: 'vexoris_events_v3',
+  EVENTS: 'vexoris_events_v5',
   REGISTRATIONS: 'vexoris_registrations_v1',
   PARTICIPANTS: 'vexoris_participants_v1',
   ADMIN_SESSION: 'vexoris_admin_session_v1',
@@ -12,7 +12,23 @@ const STORAGE_KEYS = {
 
 // Initialise local storage with empty data (no fake test entries)
 const initLocalStore = () => {
-  if (!localStorage.getItem(STORAGE_KEYS.EVENTS) || localStorage.getItem(STORAGE_KEYS.EVENTS).indexOf('judges') !== -1) {
+  ['vexoris_events_v1', 'vexoris_events_v2', 'vexoris_events_v3', 'vexoris_events_v4'].forEach(k => {
+    try { localStorage.removeItem(k); } catch (e) {}
+  });
+  const cachedEvents = localStorage.getItem(STORAGE_KEYS.EVENTS);
+  let shouldReset = !cachedEvents || cachedEvents.indexOf('judges') !== -1;
+  if (cachedEvents && !shouldReset) {
+    try {
+      const parsed = JSON.parse(cachedEvents);
+      const debateEvt = parsed.find(e => e.id === 'debate');
+      if (!debateEvt || debateEvt.format !== 'group' || debateEvt.minTeamSize !== 2 || !debateEvt.rules?.[0]?.includes('consist of 2 students')) {
+        shouldReset = true;
+      }
+    } catch {
+      shouldReset = true;
+    }
+  }
+  if (shouldReset) {
     localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(OFFICIAL_EVENTS));
   }
   if (!localStorage.getItem(STORAGE_KEYS.REGISTRATIONS)) {
@@ -94,32 +110,81 @@ export const getEvents = async () => {
         .select('*')
         .order('name');
       if (!error && data && data.length > 0) {
-        // Map database fields to application shape
-        return data.map(item => ({
-          ...item,
-          minTeamSize: item.min_team_size,
-          maxTeamSize: item.max_team_size,
-          registrationOpen: item.registration_open,
-          shortDescription: item.short_description,
-          fullDescription: item.full_description,
-          // Preserve static coordinate & icon mappings
-          mapCoords: OFFICIAL_EVENTS.find(e => e.id === item.id)?.mapCoords || { x: 500, y: 250 },
-          icon: OFFICIAL_EVENTS.find(e => e.id === item.id)?.icon || 'Activity'
-        }));
+        // Map database fields to application shape, ensuring official rules & duo format for debate
+        return data.map(item => {
+          const official = OFFICIAL_EVENTS.find(e => e.id === item.id);
+          const isDebate = item.id === 'debate';
+          
+          // Auto-patch Supabase database if debate is still solo or has old min size
+          if (isDebate && (item.format !== 'group' || item.min_team_size !== 2)) {
+            supabase.from('events').update({
+              format: 'group',
+              min_team_size: 2,
+              max_team_size: 2,
+              rules: official?.rules
+            }).eq('id', 'debate').then(() => {}).catch(() => {});
+          }
+
+          return {
+            ...item,
+            format: isDebate ? 'group' : (item.format || official?.format || 'solo'),
+            minTeamSize: isDebate ? 2 : (item.min_team_size ?? official?.minTeamSize ?? 1),
+            maxTeamSize: isDebate ? 2 : (item.max_team_size ?? official?.maxTeamSize ?? 1),
+            rules: isDebate ? official?.rules : (item.rules && Array.isArray(item.rules) && item.rules.length > 0 ? item.rules : official?.rules),
+            registrationOpen: item.registration_open ?? official?.registrationOpen ?? true,
+            shortDescription: item.short_description || official?.shortDescription,
+            fullDescription: item.full_description || official?.fullDescription,
+            mapCoords: official?.mapCoords || { x: 500, y: 250 },
+            icon: official?.icon || 'Activity'
+          };
+        });
       }
     } catch (err) {
       console.warn('Falling back to local events cache:', err);
     }
   }
 
-  // Local fallback
+  // Local store: always ensure official rules & duo format for debate are merged
   const raw = localStorage.getItem(STORAGE_KEYS.EVENTS);
-  return raw ? JSON.parse(raw) : OFFICIAL_EVENTS;
+  if (!raw) return OFFICIAL_EVENTS;
+  try {
+    const parsed = JSON.parse(raw);
+    return OFFICIAL_EVENTS.map(official => {
+      const stored = parsed.find(p => p.id === official.id);
+      if (!stored) return official;
+      if (official.id === 'debate') {
+        return {
+          ...stored,
+          ...official,
+          rules: official.rules,
+          format: 'group',
+          minTeamSize: 2,
+          maxTeamSize: 2
+        };
+      }
+      return { ...official, ...stored };
+    });
+  } catch {
+    return OFFICIAL_EVENTS;
+  }
 };
 
 export const getEventById = async (id) => {
   const events = await getEvents();
-  return events.find(e => e.id === id) || null;
+  const lowerId = (id || '').toLowerCase();
+  const matched = events.find(e => e.id.toLowerCase() === lowerId);
+  const official = OFFICIAL_EVENTS.find(e => e.id.toLowerCase() === lowerId);
+  if (!matched && !official) return null;
+  return {
+    ...official,
+    ...matched,
+    ...(lowerId === 'debate' ? {
+      format: 'group',
+      minTeamSize: 2,
+      maxTeamSize: 2,
+      rules: official?.rules
+    } : {})
+  };
 };
 
 export const updateEvent = async (eventId, updates) => {
@@ -237,13 +302,18 @@ export const createRegistration = async ({ eventId, teamName, format, participan
   }
 
   // 2. Enforce team size limits
+  let cleanTeamName = teamName?.trim() || null;
   if (format === 'solo') {
     if (participants.length !== 1) {
       throw new Error('Solo registration requires exactly 1 participant.');
     }
+    cleanTeamName = null;
   } else if (format === 'group') {
-    if (!teamName || !teamName.trim()) {
-      throw new Error('Team name is required for group registration.');
+    if (!cleanTeamName) {
+      const names = participants.map(p => p.fullName?.trim()).filter(Boolean);
+      cleanTeamName = names.length > 0 
+        ? names.join(' & ') 
+        : `${event.name} ${event.id === 'debate' || event.id === 'quiz' ? 'Duo' : 'Team'}`;
     }
     if (participants.length < (event.minTeamSize || 2)) {
       throw new Error(`Minimum team size for ${event.name} is ${event.minTeamSize || 2}.`);
@@ -285,7 +355,7 @@ export const createRegistration = async ({ eventId, teamName, format, participan
     reference_code: referenceCode,
     event_id: eventId,
     format,
-    team_name: format === 'group' ? teamName.trim() : null,
+    team_name: cleanTeamName,
     participant_count: participants.length,
     status: 'confirmed',
     created_at: now
@@ -310,7 +380,7 @@ export const createRegistration = async ({ eventId, teamName, format, participan
           reference_code: referenceCode,
           event_id: eventId,
           format,
-          team_name: format === 'group' ? teamName.trim() : null,
+          team_name: cleanTeamName,
           participant_count: participants.length,
           status: 'confirmed'
         }])

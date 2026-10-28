@@ -99,7 +99,7 @@ export default function RegistrationForm({ event, onComplete }) {
     try {
       const result = await createRegistration({
         eventId: event.id,
-        teamName: isSolo ? null : (teamName.trim() || `${event.name} Squad`),
+        teamName: null,
         format: event.format,
         participants
       });
@@ -159,12 +159,7 @@ export default function RegistrationForm({ event, onComplete }) {
             <span className="text-white font-semibold font-heading uppercase">{event.name} ({event.category})</span>
           </div>
 
-          {!isSolo && teamName && (
-            <div className="flex items-center justify-between py-2 border-b border-[#1A2230]">
-              <span className="text-slate-400 font-mono text-xs uppercase tracking-wider">Team Name</span>
-              <span className="text-white font-semibold">{teamName}</span>
-            </div>
-          )}
+
 
           <div className="flex items-center justify-between py-2 border-b border-[#1A2230]">
             <span className="text-slate-400 font-mono text-xs uppercase tracking-wider">Participants Registered</span>
@@ -231,12 +226,7 @@ export default function RegistrationForm({ event, onComplete }) {
               <span className="text-slate-400 font-mono text-xs uppercase">Target Arena</span>
               <span className="text-white font-bold">{event.name} ({event.category})</span>
             </div>
-            {!isSolo && (
-              <div className="flex justify-between items-center">
-                <span className="text-slate-400 font-mono text-xs uppercase">Team Name</span>
-                <span className="text-white font-semibold">{teamName || '(No team name)'}</span>
-              </div>
-            )}
+
             <div className="flex justify-between items-center">
               <span className="text-slate-400 font-mono text-xs uppercase">Format</span>
               <span className="text-cyan font-semibold">{isSolo ? 'Solo Participation' : `Team (${participants.length} Members)`}</span>
@@ -389,19 +379,14 @@ export default function RegistrationForm({ event, onComplete }) {
                 /* GROUP EVENT FIELDS */
                 <div className="space-y-6">
                   
-                  {/* Team Name */}
-                  <div>
-                    <label className="block text-xs font-mono font-bold text-slate-200 uppercase tracking-wider mb-2">
-                      Team / Squad Name (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={teamName}
-                      onChange={(e) => setTeamName(e.target.value)}
-                      placeholder="e.g. Cyber Ravens"
-                      className="w-full px-4 py-3.5 bg-[#0D1017] border border-[#263146] rounded-xl text-base sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
-                    />
-                  </div>
+                  {minTeam === maxTeam && (
+                    <div className="p-3 bg-[#0D1017] border border-[#263146] rounded-xl flex items-center justify-between">
+                      <span className="text-xs font-mono font-bold text-slate-300 uppercase tracking-wider">Format</span>
+                      <span className="text-xs font-mono font-bold text-cyan uppercase tracking-wider px-2 py-0.5 rounded bg-[#161D2B] border border-cyan/40">
+                        {event.id === 'debate' || event.id === 'quiz' ? 'Duo Event (2 Participants)' : `Squad Event (${minTeam} Players)`}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Number of Participants Pills */}
                   <div>
@@ -410,7 +395,7 @@ export default function RegistrationForm({ event, onComplete }) {
                         Number of Team Members *
                       </label>
                       <span className="text-xs font-mono text-cyan">
-                        {event.id === 'bgmi' || event.id === 'free-fire' ? 'Squad of 4 Players' : event.id === 'quiz' ? 'Team of 2 Members' : `Range: ${minTeam} to ${maxTeam}`}
+                        {event.id === 'bgmi' || event.id === 'free-fire' ? 'Squad of 4 Players' : (event.id === 'quiz' || event.id === 'debate') ? 'Duo of 2 Members' : `Range: ${minTeam} to ${maxTeam}`}
                       </span>
                     </div>
                     <div className="flex items-center gap-2.5">

@@ -884,20 +884,19 @@ export default function AdminDashboardPage() {
                       <thead>
                         <tr className="border-b border-[#1E2536] bg-[#0E121A] text-muted font-heading font-bold uppercase text-[11px] tracking-wider">
                           <th className="py-3 px-4 w-12">#</th>
-                          <th className="py-3 px-4">Team Name</th>
-                          <th className="py-3 px-4">Participants</th>
-                          <th className="py-3 px-4">Class / Department</th>
+                          <th className="py-3 px-4 min-w-[220px]">Participant(s)</th>
+                          <th className="py-3 px-4 min-w-[200px]">Class / Department</th>
+                          <th className="py-3 px-4 text-center">Event & Type</th>
                           <th className="py-3 px-4">Status</th>
                           <th className="py-3 px-4 w-10 text-center">...</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#171D2A]">
                         {displayRegistrations.map((reg, index) => {
-                          const primaryMember = reg.participants?.[0];
-                          const classDept = primaryMember 
-                            ? `${primaryMember.class_course} / ${primaryMember.department}`
-                            : '—';
-                          const participantCount = reg.participants?.length || reg.participant_count || 1;
+                          const eventObj = events.find(e => e.id === reg.event_id);
+                          const participantList = reg.participants || [];
+                          const participantCount = participantList.length || reg.participant_count || 1;
+                          const isDuo = reg.format === 'group' && (reg.event_id === 'debate' || reg.event_id === 'quiz' || participantCount === 2);
 
                           return (
                             <tr key={reg.id} className="hover:bg-[#151B28] transition-colors">
@@ -905,16 +904,61 @@ export default function AdminDashboardPage() {
                                 {index + 1}
                               </td>
 
-                              <td className="py-3.5 px-4 font-heading font-bold text-ivory">
-                                {reg.team_name || (reg.format === 'solo' ? primaryMember?.full_name : 'Team Entry')}
+                              {/* Participants Column: All team members in same column */}
+                              <td className="py-3.5 px-4">
+                                {participantList.length > 0 ? (
+                                  <div className="space-y-1.5 py-0.5">
+                                    {participantList.map((p, pIdx) => (
+                                      <div key={p.id || pIdx} className="flex items-center gap-2">
+                                        {participantList.length > 1 && (
+                                          <span className="w-5 h-5 rounded bg-[#171E2D] border border-cyan/40 text-cyan font-mono text-[10px] font-bold flex items-center justify-center shrink-0">
+                                            {pIdx + 1}
+                                          </span>
+                                        )}
+                                        <span className="font-heading font-bold text-ivory text-xs sm:text-sm">
+                                          {p.full_name || p.fullName}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span className="font-heading font-bold text-ivory">
+                                    {reg.team_name || '—'}
+                                  </span>
+                                )}
                               </td>
 
-                              <td className="py-3.5 px-4 font-mono text-cyan">
-                                {participantCount}
+                              {/* Class / Department Column: Corresponding info per member */}
+                              <td className="py-3.5 px-4">
+                                {participantList.length > 0 ? (
+                                  <div className="space-y-1.5 py-0.5">
+                                    {participantList.map((p, pIdx) => (
+                                      <div key={p.id || pIdx} className="text-muted text-xs leading-5">
+                                        <span className="text-slate-300 font-medium">{p.class_course || p.classCourse || '—'}</span>
+                                        <span className="text-slate-600 mx-1">•</span>
+                                        <span className="text-slate-400">{p.department || '—'}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span className="text-muted text-xs">—</span>
+                                )}
                               </td>
 
-                              <td className="py-3.5 px-4 text-muted truncate max-w-xs font-medium">
-                                {classDept}
+                              {/* Event & Format Badge */}
+                              <td className="py-3.5 px-4 text-center">
+                                <div className="inline-flex flex-col items-center gap-1">
+                                  <span className="font-mono font-bold text-xs text-white uppercase">
+                                    {eventObj?.name || reg.event_id}
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-[#161D2B] text-cyan border border-cyan/30">
+                                    {reg.format === 'solo' 
+                                      ? 'Solo (1)' 
+                                      : isDuo 
+                                        ? 'Duo (2 Players)' 
+                                        : `Team (${participantCount})`}
+                                  </span>
+                                </div>
                               </td>
 
                               <td className="py-3.5 px-4">

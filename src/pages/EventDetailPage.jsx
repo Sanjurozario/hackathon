@@ -5,7 +5,8 @@ import {
   Calendar, 
   Clock, 
   MapPin, 
-  ChevronRight
+  ChevronRight,
+  Users
 } from 'lucide-react';
 import { getEventById } from '../lib/db';
 import EventArtwork from '../components/EventArtwork';
@@ -78,13 +79,21 @@ export default function EventDetailPage() {
               
               <div>
                 {/* Badge without crown */}
-                <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-3 mb-4 flex-wrap">
                   <span className={`px-3 py-1 rounded text-xs font-mono font-bold uppercase tracking-wider ${
                     isTech 
                       ? 'bg-cyan text-[#0B0D11]' 
                       : 'bg-red text-ivory'
                   }`}>
                     {event.number ? `${event.number} ${event.category.toUpperCase()} EVENT` : numberBadge}
+                  </span>
+
+                  <span className="px-3 py-1 rounded text-xs font-mono font-bold uppercase tracking-wider bg-[#141A26] text-cyan border border-cyan/40">
+                    {event.id === 'debate' || event.id === 'quiz'
+                      ? 'FORMAT: DUO (2 PARTICIPANTS)'
+                      : event.format === 'solo'
+                        ? 'FORMAT: SOLO (1 PARTICIPANT)'
+                        : `FORMAT: SQUAD (${event.minTeamSize}-${event.maxTeamSize} PLAYERS)`}
                   </span>
                 </div>
 
@@ -102,15 +111,22 @@ export default function EventDetailPage() {
               {/* Action Buttons Row */}
               <div className="pt-6 flex flex-wrap items-center gap-4">
                 <Link
-                  to="/rules"
+                  to={`/events/${event.id}/register`}
                   className={`px-7 py-3 text-xs font-heading font-black uppercase tracking-[0.16em] rounded-xl transition-all shadow-lg flex items-center gap-2 ${
                     isTech 
                       ? 'bg-cyan text-[#0B0D11] hover:bg-white' 
                       : 'bg-[#E5385D] text-white hover:bg-[#F43F68]'
                   }`}
                 >
-                  <span>View Event Rules</span>
+                  <span>Register for Event</span>
                   <ChevronRight className="w-4 h-4" />
+                </Link>
+
+                <Link
+                  to="/rules"
+                  className="px-6 py-3 bg-[#171D27] hover:bg-[#202735] text-slate-200 hover:text-white text-xs font-heading font-bold uppercase tracking-wider rounded-xl border border-[#232C3D] transition-colors"
+                >
+                  View Event Rules
                 </Link>
 
                 <Link
@@ -135,7 +151,7 @@ export default function EventDetailPage() {
 
           </div>
 
-          {/* Horizontal Pill Metadata Bar: OCT 30, 2026 | 12:30 PM | VENUE | COORDINATOR - No solo/group mention */}
+          {/* Horizontal Pill Metadata Bar */}
           <div className="px-6 sm:px-10 py-3.5 bg-[#0C0F16] border-t border-[#1C2331] flex flex-wrap items-center gap-4 sm:gap-7 text-xs font-heading font-bold uppercase tracking-wider text-muted">
             <span className="flex items-center gap-2 text-ivory">
               <Calendar className="w-3.5 h-3.5 text-cyan" />
@@ -147,6 +163,13 @@ export default function EventDetailPage() {
             <span className="flex items-center gap-2 text-ivory">
               <Clock className="w-3.5 h-3.5 text-cyan" />
               <span>12:30 PM</span>
+            </span>
+
+            <span className="text-white/20 hidden sm:inline">|</span>
+
+            <span className="flex items-center gap-2 text-cyan font-bold">
+              <Users className="w-3.5 h-3.5" />
+              <span>{event.id === 'debate' || event.id === 'quiz' ? 'DUO (2 PARTICIPANTS)' : event.format === 'solo' ? 'SOLO (1 PARTICIPANT)' : `SQUAD (${event.minTeamSize}-${event.maxTeamSize} PLAYERS)`}</span>
             </span>
 
             <span className="text-white/20 hidden sm:inline">|</span>

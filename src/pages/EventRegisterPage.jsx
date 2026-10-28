@@ -128,7 +128,7 @@ export default function EventRegisterPage() {
     try {
       const result = await createRegistration({
         eventId: currentEvent.id,
-        teamName: isSolo ? null : (teamName.trim() || `${currentEvent.name} Squad`),
+        teamName: null,
         format: currentEvent.format,
         participants
       });
@@ -226,7 +226,7 @@ export default function EventRegisterPage() {
                   <optgroup label="TECHNICAL COMPETITIONS">
                     {allEvents.filter(e => e.category === 'Technical').map(evt => (
                       <option key={evt.id} value={evt.id}>
-                        {evt.name} — {evt.format === 'solo' ? 'Solo' : 'Team'}
+                        {evt.name} — {evt.id === 'quiz' || evt.id === 'debate' ? 'Duo (2 Players)' : evt.format === 'solo' ? 'Solo' : 'Team'}
                       </option>
                     ))}
                   </optgroup>
@@ -244,52 +244,51 @@ export default function EventRegisterPage() {
               </div>
             </div>
 
-            {/* 2. TEAM NAME (If Group Event) */}
+            {/* 2. FORMAT / TEAM SIZE (No Team Name required) */}
             {!isSolo && (
-              <div className="space-y-4 pt-2">
-                <div>
-                  <label className="block text-xs font-mono font-bold text-slate-200 uppercase tracking-wider mb-2">
-                    Team / Squad Name (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={teamName}
-                    onChange={(e) => setTeamName(e.target.value)}
-                    placeholder="e.g. Cyber Ravens"
-                    className="w-full px-4 py-3.5 bg-[#0D1017] border border-[#263146] rounded-xl text-base sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan transition-all"
-                  />
-                </div>
-
-                {/* Team Size Pill Selector */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-mono font-bold text-slate-200 uppercase tracking-wider">
-                      Number of Team Members *
-                    </label>
-                    <span className="text-xs font-mono text-cyan">
-                      {currentEvent?.id === 'bgmi' || currentEvent?.id === 'free-fire' ? 'Squad of 4 Players' : currentEvent?.id === 'quiz' ? 'Team of 2 Members' : `Allowed: ${minTeam} to ${maxTeam}`}
+              <div className="pt-2">
+                {minTeam === maxTeam ? (
+                  <div className="p-3.5 bg-[#0D1017] border border-[#263146] rounded-xl flex items-center justify-between">
+                    <span className="text-xs font-mono font-bold text-slate-300 uppercase tracking-wider">
+                      Event Format
+                    </span>
+                    <span className="text-xs font-mono font-bold text-cyan uppercase tracking-wider px-2.5 py-1 rounded bg-[#161D2B] border border-cyan/40">
+                      {currentEvent?.id === 'debate' || currentEvent?.id === 'quiz' 
+                        ? 'Duo Event (2 Participants)' 
+                        : `Squad Event (${minTeam} Participants)`}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2.5">
-                    {countOptions.map(cnt => {
-                      const isSelected = participantCount === cnt;
-                      return (
-                        <button
-                          key={cnt}
-                          type="button"
-                          onClick={() => handleCountChange(cnt)}
-                          className={`w-12 h-12 rounded-xl text-sm font-heading font-black transition-all ${
-                            isSelected
-                              ? 'bg-cyan text-[#0B0D11] shadow-lg shadow-cyan/25 scale-105'
-                              : 'bg-[#182030] text-slate-300 hover:text-white border border-[#263248]'
-                          }`}
-                        >
-                          {cnt}
-                        </button>
-                      );
-                    })}
+                ) : (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-xs font-mono font-bold text-slate-200 uppercase tracking-wider">
+                        Number of Team Members *
+                      </label>
+                      <span className="text-xs font-mono text-cyan">
+                        Allowed: {minTeam} to {maxTeam} Members
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                      {countOptions.map(cnt => {
+                        const isSelected = participantCount === cnt;
+                        return (
+                          <button
+                            key={cnt}
+                            type="button"
+                            onClick={() => handleCountChange(cnt)}
+                            className={`w-12 h-12 rounded-xl text-sm font-heading font-black transition-all ${
+                              isSelected
+                                ? 'bg-cyan text-[#0B0D11] shadow-lg shadow-cyan/25 scale-105'
+                                : 'bg-[#182030] text-slate-300 hover:text-white border border-[#263248]'
+                            }`}
+                          >
+                            {cnt}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
 
@@ -311,7 +310,9 @@ export default function EventRegisterPage() {
                   {!isSolo && (
                     <div className="flex items-center justify-between border-b border-[#1E2638] pb-2">
                       <span className="text-xs font-mono font-bold text-cyan uppercase tracking-wider">
-                        {idx === 0 ? 'Member 1 (Team Leader)' : `Member ${idx + 1}`}
+                        {currentEvent?.id === 'debate' || currentEvent?.id === 'quiz' 
+                          ? `Person ${idx + 1}` 
+                          : `Participant ${idx + 1}`}
                       </span>
                     </div>
                   )}
@@ -439,13 +440,6 @@ export default function EventRegisterPage() {
                   {successModalData.event?.name || currentEvent?.name}
                 </span>
               </div>
-
-              {teamName && (
-                <div className="flex justify-between items-center py-1.5 border-b border-[#1A2230]">
-                  <span className="text-slate-400 font-mono text-xs uppercase">Team Name</span>
-                  <span className="text-white font-semibold">{teamName}</span>
-                </div>
-              )}
 
               <div className="py-1.5">
                 <span className="text-slate-400 font-mono text-xs uppercase block mb-1">Registered Participants</span>

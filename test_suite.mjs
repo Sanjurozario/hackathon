@@ -86,6 +86,41 @@ import('./src/lib/db.js').then(async (db) => {
     console.log(`✓ Enforced minimum team size constraint: "${err.message}"`);
   }
 
+  console.log('\n--- TEST 6B: Debate Duo Registration Without Team Name (2 Players) ---');
+  const debateReg = await db.createRegistration({
+    eventId: 'debate',
+    teamName: null, // No team name provided
+    format: 'group',
+    participants: [
+      { fullName: 'Priya Nambiar', classCourse: 'BA Economics 2nd Year', department: 'Economics' },
+      { fullName: 'Devraj Rao', classCourse: 'B.Sc Physics 3rd Year', department: 'Physics' }
+    ]
+  });
+  console.log(`✓ Debate Duo Registration Success! Identifier: ${debateReg.registration.team_name}, Reference: ${debateReg.referenceCode}, Members: ${debateReg.participants.length}`);
+  if (debateReg.registration.team_name !== 'Priya Nambiar & Devraj Rao') {
+    throw new Error('Expected team_name to be synthesized as "Priya Nambiar & Devraj Rao"');
+  }
+
+  // Verify debate rules match the user's exact specification
+  const debateEvent = await db.getEventById('debate');
+  console.log(`✓ Debate Event Format: ${debateEvent.format}, Min: ${debateEvent.minTeamSize}, Max: ${debateEvent.maxTeamSize}`);
+  console.log(`✓ Debate Rule 1: "${debateEvent.rules[0]}"`);
+  if (!debateEvent.rules[0].includes('consist of 2 students')) {
+    throw new Error('Debate rule 1 does not match updated specification!');
+  }
+
+  try {
+    await db.createRegistration({
+      eventId: 'debate',
+      teamName: null,
+      format: 'group',
+      participants: [{ fullName: 'Solo Voice', classCourse: 'BA', department: 'English' }]
+    });
+    throw new Error('Debate solo registration should fail because Debate requires a 2-player duo!');
+  } catch (err) {
+    console.log(`✓ Enforced debate duo min team size: "${err.message}"`);
+  }
+
   console.log('\n--- TEST 7: Dashboard Metrics Computation ---');
   const metrics = await db.getDashboardMetrics();
   console.log(`✓ Total Registrations: ${metrics.totalRegistrations}`);

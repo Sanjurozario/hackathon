@@ -158,8 +158,8 @@ export default function RulesPage() {
 
             const formatLabel = isSolo 
               ? 'Solo Participation (1 Participant)' 
-              : event.id === 'quiz' 
-                ? 'Team Format (2 Participants)' 
+              : (event.id === 'quiz' || event.id === 'debate')
+                ? 'Duo Format (2 Participants)' 
                 : 'Squad Format (4 Players)';
 
             return (
