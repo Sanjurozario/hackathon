@@ -159,32 +159,53 @@ export default function PrintRosterModal({ event, registrations = [], onClose })
                     {rows.map((row) => {
                       if (row.isGroupRow) {
                         return (
-                          <tr key={`${row.referenceCode}-${row.serial}`} className="border-b border-gray-400">
-                            <td className="py-2.5 px-2.5 border border-black text-center font-mono font-medium align-middle">
+                          <tr key={`${row.referenceCode}-${row.serial}`} className="team-row border-b-2 border-black">
+                            <td className="print-flush p-0 border border-black text-center font-mono font-bold text-xs align-middle w-12 bg-gray-50/20">
                               {row.serial}
                             </td>
-                            <td className="py-2 px-3 border border-black font-medium align-top">
+                            <td className="print-flush p-0 border border-black font-medium align-top min-w-[200px]">
                               {row.members.map((m, idx) => (
-                                <div key={idx} className="min-h-[22px] py-0.5 flex items-center leading-tight">
-                                  {m.participantName}
+                                <div 
+                                  key={idx} 
+                                  className={`px-3 py-2 min-h-[32px] flex items-center leading-tight ${
+                                    idx !== 0 ? 'border-t border-gray-300' : ''
+                                  }`}
+                                >
+                                  <span className="font-semibold text-black text-xs uppercase">
+                                    {m.participantName}
+                                  </span>
                                 </div>
                               ))}
                             </td>
-                            <td className="py-2 px-3 border border-black font-medium align-top">
+                            <td className="print-flush p-0 border border-black font-medium align-top w-36">
                               {row.members.map((m, idx) => (
-                                <div key={idx} className="min-h-[22px] py-0.5 flex items-center leading-tight uppercase">
-                                  {m.classCourse}
+                                <div 
+                                  key={idx} 
+                                  className={`px-3 py-2 min-h-[32px] flex items-center leading-tight ${
+                                    idx !== 0 ? 'border-t border-gray-300' : ''
+                                  }`}
+                                >
+                                  <span className="text-gray-900 text-xs uppercase font-medium">
+                                    {m.classCourse}
+                                  </span>
                                 </div>
                               ))}
                             </td>
-                            <td className="py-2 px-3 border border-black align-top">
+                            <td className="print-flush p-0 border border-black align-top w-36">
                               {row.members.map((m, idx) => (
-                                <div key={idx} className="min-h-[22px] py-0.5 flex items-center leading-tight uppercase">
-                                  {m.department}
+                                <div 
+                                  key={idx} 
+                                  className={`px-3 py-2 min-h-[32px] flex items-center leading-tight ${
+                                    idx !== 0 ? 'border-t border-gray-300' : ''
+                                  }`}
+                                >
+                                  <span className="text-gray-900 text-xs uppercase">
+                                    {m.department}
+                                  </span>
                                 </div>
                               ))}
                             </td>
-                            <td className="py-2 px-3 border border-black bg-gray-50/20 align-top">
+                            <td className="print-flush p-0 border border-black bg-gray-50/20 align-top w-28">
                               {/* Blank signing space with adequate height for team signatures */}
                             </td>
                           </tr>
@@ -193,23 +214,23 @@ export default function PrintRosterModal({ event, registrations = [], onClose })
 
                       // Individual registrations and non-Technical/Gaming categories
                       return (
-                        <tr key={`${row.referenceCode}-${row.serial}`} className="border-b border-gray-400">
-                          <td className="py-2.5 px-2.5 border border-black text-center font-mono font-medium">
+                        <tr key={`${row.referenceCode}-${row.serial}`} className="border-b border-black">
+                          <td className="py-2.5 px-2.5 border border-black text-center font-mono font-medium align-middle w-12">
                             {row.serial}
                           </td>
-                          <td className="py-2.5 px-3 border border-black font-medium">
-                            {row.participantName}
+                          <td className="py-2.5 px-3 border border-black font-medium min-w-[200px]">
+                            <span className="font-semibold text-black uppercase">{row.participantName}</span>
                             {row.teamName && row.teamName !== 'Individual' && row.teamName !== '—' && (
                               <span className="block text-[10px] text-gray-600 font-normal">Team: {row.teamName}</span>
                             )}
                           </td>
-                          <td className="py-2.5 px-3 border border-black font-medium">
+                          <td className="py-2.5 px-3 border border-black font-medium w-36 uppercase">
                             {row.classCourse}
                           </td>
-                          <td className="py-2.5 px-3 border border-black">
+                          <td className="py-2.5 px-3 border border-black w-36 uppercase">
                             {row.department}
                           </td>
-                          <td className="py-2.5 px-3 border border-black bg-gray-50/20">
+                          <td className="py-2.5 px-3 border border-black bg-gray-50/20 w-28">
                             {/* Signature line for on-desk attendance */}
                           </td>
                         </tr>
