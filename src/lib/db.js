@@ -110,6 +110,9 @@ export const deleteRegistration = async (registrationId) => {
         cloudError = error.message;
       } else if (data && data.length > 0) {
         cloudDeleted = true;
+      } else {
+        // No SQL error, but PostgreSQL RLS blocked deleting rows
+        cloudError = 'BLOCKED_BY_RLS';
       }
     } catch (err) {
       cloudError = err.message;

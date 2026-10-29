@@ -1041,9 +1041,16 @@ export default function AdminDashboardPage() {
                                     e.stopPropagation();
                                     const ref = reg.reference_code || reg.id;
                                     const memberNames = (reg.participants || []).map(p => p.full_name || p.fullName).join(', ') || reg.team_name || 'Team';
-                                    if (window.confirm(`Are you sure you want to permanently delete registration ${ref} (${memberNames})?\n\nThis will remove this record from your dashboard.`)) {
-                                      await deleteRegistration(reg.id);
+                                    if (window.confirm(`Are you sure you want to permanently delete registration ${ref} (${memberNames})?\n\nThis will remove this record from your database.`)) {
+                                      const res = await deleteRegistration(reg.id);
                                       await loadData();
+                                      if (res.cloudDeleted) {
+                                        alert(`Success: Registration ${ref} has been permanently deleted from Supabase database!`);
+                                      } else {
+                                        alert(
+                                          `Notice: Registration ${ref} was hidden from your dashboard, but Supabase Row Level Security (RLS) blocked deleting it directly from PostgreSQL cloud database.\n\nTo enable instant live deletion in Supabase, run this in your Supabase SQL Editor:\n\nALTER TABLE public.registrations DISABLE ROW LEVEL SECURITY;\nALTER TABLE public.participants DISABLE ROW LEVEL SECURITY;`
+                                        );
+                                      }
                                     }
                                   }}
                                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-heading font-bold text-red hover:text-white bg-red/10 hover:bg-red border border-red/30 rounded-lg transition-all cursor-pointer shadow-sm"
@@ -1251,8 +1258,15 @@ export default function AdminDashboardPage() {
                                   onClick={async (e) => {
                                     e.stopPropagation();
                                     if (window.confirm(`Delete registration for ${p.full_name}?`)) {
-                                      await deleteRegistration(p.registration_id);
+                                      const res = await deleteRegistration(p.registration_id);
                                       await loadData();
+                                      if (res.cloudDeleted) {
+                                        alert(`Success: Registration for ${p.full_name} was deleted from Supabase!`);
+                                      } else {
+                                        alert(
+                                          `Notice: Removed from dashboard view, but Supabase Row Level Security (RLS) prevented deletion from the cloud.\n\nTo enable live deletion in Supabase, run this in your Supabase SQL Editor:\n\nALTER TABLE public.registrations DISABLE ROW LEVEL SECURITY;\nALTER TABLE public.participants DISABLE ROW LEVEL SECURITY;`
+                                        );
+                                      }
                                     }
                                   }}
                                   className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-heading font-bold text-red hover:text-white bg-red/10 hover:bg-red border border-red/30 rounded transition-colors cursor-pointer"
@@ -1300,6 +1314,30 @@ export default function AdminDashboardPage() {
                 <div className="p-4 bg-[#0C0F16] rounded-lg border border-[#1C2331] space-y-1">
                   <span className="text-muted block text-[10px] uppercase">Active User</span>
                   <div className="text-ivory">{session.email}</div>
+                </div>
+
+                <div className="p-4 bg-[#0C0F16] rounded-lg border border-cyan/30 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-cyan block text-[10px] uppercase font-bold">Supabase Cloud Deletion Setup</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText('ALTER TABLE public.registrations DISABLE ROW LEVEL SECURITY;\nALTER TABLE public.participants DISABLE ROW LEVEL SECURITY;\nDROP INDEX IF EXISTS idx_unique_participant_per_event;');
+                        alert('Copied SQL command to clipboard!\n\nPaste and run this in your Supabase SQL Editor to enable instant deletions and allow re-registrations.');
+                      }}
+                      className="px-2.5 py-1 bg-cyan/20 hover:bg-cyan/30 text-cyan rounded text-[10px] font-mono cursor-pointer"
+                    >
+                      Copy SQL Command
+                    </button>
+                  </div>
+                  <p className="text-slate-400 text-xs font-sans">
+                    If deleting a registration from the dashboard does not remove it from Supabase, run this in your Supabase SQL Editor to disable the RLS block:
+                  </p>
+                  <pre className="bg-black/60 p-2.5 rounded text-[11px] text-amber-300 overflow-x-auto select-all">
+ALTER TABLE public.registrations DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.participants DISABLE ROW LEVEL SECURITY;
+DROP INDEX IF EXISTS idx_unique_participant_per_event;
+                  </pre>
                 </div>
 
                 <div className="p-4 bg-[#0C0F16] rounded-lg border border-red/20 space-y-3">
