@@ -68,58 +68,51 @@ export const clearAllRegistrations = async () => {
   return { success: true, cloudDeleted, cloudError };
 };
 
-// Exported function to delete a single registration (works across all browsers and Supabase)
-export const deleteRegistration = async (registrationId, referenceCode = null) => {
+// Exported function to delete a single registration directly from Supabase
+export const deleteRegistration = async (registrationId) => {
   initLocalStore();
+  let cloudDeleted = false;
+  let cloudError = null;
 
-  // 1. Immediately track in localStorage deleted registry so it is permanently excluded from this browser
+  // 1. Remove from local storage cache
   if (typeof localStorage !== 'undefined') {
-    const rawDeleted = localStorage.getItem(STORAGE_KEYS.DELETED_REGISTRATIONS);
-    const deletedIds = rawDeleted ? JSON.parse(rawDeleted) : [];
-    if (!deletedIds.includes(registrationId)) {
-      deletedIds.push(registrationId);
-      if (referenceCode && !deletedIds.includes(referenceCode)) deletedIds.push(referenceCode);
-      localStorage.setItem(STORAGE_KEYS.DELETED_REGISTRATIONS, JSON.stringify(deletedIds));
-    }
-
     const rawRegs = localStorage.getItem(STORAGE_KEYS.REGISTRATIONS);
     const regs = rawRegs ? JSON.parse(rawRegs) : [];
-    localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(regs.filter(r => r.id !== registrationId && r.reference_code !== registrationId && r.reference_code !== referenceCode)));
+    localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(regs.filter(r => r.id !== registrationId)));
 
     const rawParts = localStorage.getItem(STORAGE_KEYS.PARTICIPANTS);
     const parts = rawParts ? JSON.parse(rawParts) : [];
     localStorage.setItem(STORAGE_KEYS.PARTICIPANTS, JSON.stringify(parts.filter(p => p.registration_id !== registrationId)));
   }
 
-  // 2. Persist deletion tombstone into Supabase cloud so ALL devices recognize this record as deleted
+  // 2. Physical delete in Supabase database
   if (isSupabaseConfigured && supabase) {
     try {
-      const tombstoneRef = `DEL-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-      await supabase.from('registrations').insert([{
-        reference_code: tombstoneRef,
-        event_id: 'it-manager',
-        format: 'solo',
-        team_name: `__DELETED_REGISTRATION__:${registrationId}:${referenceCode || ''}`,
-        participant_count: 1,
-        status: 'cancelled'
-      }]);
-
-      // Also attempt physical SQL delete in Supabase
       await supabase
         .from('participants')
         .delete()
         .eq('registration_id', registrationId);
 
-      await supabase
+      const { data, error } = await supabase
         .from('registrations')
         .delete()
-        .eq('id', registrationId);
+        .eq('id', registrationId)
+        .select();
+
+      if (error) {
+        cloudError = error.message;
+      } else if (data && data.length > 0) {
+        cloudDeleted = true;
+      } else {
+        // No SQL error, but PostgreSQL Row Level Security (RLS) blocked deletion of rows
+        cloudError = 'BLOCKED_BY_RLS';
+      }
     } catch (err) {
-      console.warn('Supabase delete error:', err);
+      cloudError = err.message;
     }
   }
 
-  return { success: true, cloudDeleted: true };
+  return { success: true, cloudDeleted, cloudError };
 };
 
 // Generate reference code (e.g. VX-8492)
@@ -529,7 +522,8 @@ export const getRegistrationsWithParticipants = async ({ eventId = 'all', status
       }
       const { data: regData, error: regError } = await query;
       if (!regError && regData) {
-        registrations = regData;
+        // Filter out any diagnostic rows starting with TEST- or DEL-
+        registrations = regData.filter(r => !r.reference_code?.startsWith('DEL-') && !r.reference_code?.startsWith('TEST-'));
         const regIds = registrations.map(r => r.id);
         if (regIds.length > 0) {
           const { data: partData, error: partError } = await supabase
@@ -579,28 +573,11 @@ export const getRegistrationsWithParticipants = async ({ eventId = 'all', status
     }
   }
 
-  // Filter out any registrations deleted by admin across all devices via Supabase tombstones & local cache
-  const deletedIds = new Set();
-  const deletedRefs = new Set();
-
-  registrations.forEach(r => {
-    if (r.team_name && r.team_name.startsWith('__DELETED_REGISTRATION__:')) {
-      const parts = r.team_name.split(':');
-      if (parts[1]) deletedIds.add(parts[1]);
-      if (parts[2]) deletedRefs.add(parts[2]);
-    }
-  });
-
-  if (typeof localStorage !== 'undefined') {
-    const rawDeleted = localStorage.getItem(STORAGE_KEYS.DELETED_REGISTRATIONS);
-    const localDeleted = rawDeleted ? JSON.parse(rawDeleted) : [];
-    localDeleted.forEach(id => deletedIds.add(id));
-  }
-
+  // Clean registrations list
   registrations = registrations.filter(r => 
-    !r.team_name?.startsWith('__DELETED_REGISTRATION__:') &&
-    !deletedIds.has(r.id) &&
-    !deletedRefs.has(r.reference_code)
+    !r.reference_code?.startsWith('DEL-') &&
+    !r.reference_code?.startsWith('TEST-') &&
+    !r.team_name?.startsWith('__DELETED_REGISTRATION__:')
   );
 
   // 3. Attach participant records to each registration
