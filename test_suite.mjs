@@ -42,22 +42,25 @@ import('./src/lib/db.js').then(async (db) => {
     throw new Error('Reference code does not match VX-XXXX format');
   }
 
-  console.log('\n--- TEST 4: Duplicate Prevention Rule ---');
-  try {
-    await db.createRegistration({
-      eventId: 'it-manager',
-      teamName: null,
-      format: 'solo',
-      participants: [{
-        fullName: 'Rohan Deshmukh', // Same participant and department
-        classCourse: 'B.Tech CSE 3rd Year',
-        department: 'Computer Science & Engineering'
-      }]
-    });
-    throw new Error('Duplicate registration was NOT rejected!');
-  } catch (err) {
-    console.log(`✓ Correctly rejected duplicate registration: "${err.message}"`);
+  console.log('\n--- TEST 4: Duplicate Handling & Existing Registration Retrieval ---');
+  const dupAttempt = await db.createRegistration({
+    eventId: 'it-manager',
+    teamName: null,
+    format: 'solo',
+    participants: [{
+      fullName: 'Rohan Deshmukh', // Same participant and department
+      classCourse: 'B.Tech CSE 3rd Year',
+      department: 'Computer Science & Engineering'
+    }]
+  });
+
+  if (!dupAttempt.isExisting) {
+    throw new Error('Expected isExisting flag to be true when participant is already registered!');
   }
+  if (dupAttempt.referenceCode !== soloReg.referenceCode) {
+    throw new Error(`Expected reference code ${soloReg.referenceCode}, got ${dupAttempt.referenceCode}`);
+  }
+  console.log(`✓ Gracefully retrieved existing registration! Ref: ${dupAttempt.referenceCode}, isExisting: ${dupAttempt.isExisting}`);
 
   console.log('\n--- TEST 5: Group Registration with Diverse Classes/Depts (BGMI) ---');
   const groupReg = await db.createRegistration({

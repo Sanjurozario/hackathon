@@ -251,16 +251,41 @@ export const checkParticipantUniqueness = async (eventId, participants) => {
 
         const { data, error } = await supabase
           .from('participants')
-          .select('full_name, department')
+          .select('id, registration_id, full_name, department, class_course')
           .eq('event_id', eventId)
           .ilike('full_name', cleanName)
           .ilike('department', cleanDept);
 
         if (!error && data && data.length > 0) {
+          const matchedPart = data[0];
+          let existingReg = null;
+          let existingParts = [];
+
+          if (matchedPart.registration_id) {
+            const { data: regData } = await supabase
+              .from('registrations')
+              .select('*')
+              .eq('id', matchedPart.registration_id)
+              .maybeSingle();
+
+            if (regData) {
+              existingReg = regData;
+              const { data: allRegParts } = await supabase
+                .from('participants')
+                .select('*')
+                .eq('registration_id', matchedPart.registration_id);
+              if (allRegParts && allRegParts.length > 0) {
+                existingParts = allRegParts;
+              }
+            }
+          }
+
           return {
             isDuplicate: true,
             duplicateName: cleanName,
-            duplicateDept: cleanDept
+            duplicateDept: cleanDept,
+            existingRegistration: existingReg,
+            existingParticipants: existingParts.length > 0 ? existingParts : [matchedPart]
           };
         }
       }
@@ -273,6 +298,8 @@ export const checkParticipantUniqueness = async (eventId, participants) => {
   if (typeof localStorage !== 'undefined') {
     const rawParts = localStorage.getItem(STORAGE_KEYS.PARTICIPANTS);
     const allParts = rawParts ? JSON.parse(rawParts) : [];
+    const rawRegs = localStorage.getItem(STORAGE_KEYS.REGISTRATIONS);
+    const allRegs = rawRegs ? JSON.parse(rawRegs) : [];
 
     for (const p of participants) {
       const cleanName = (p.fullName || p.full_name || '').trim().toLowerCase();
@@ -286,10 +313,15 @@ export const checkParticipantUniqueness = async (eventId, participants) => {
       );
 
       if (existing) {
+        const existingReg = allRegs.find(r => r.id === existing.registration_id) || null;
+        const matchingParts = allParts.filter(ep => ep.registration_id === existing.registration_id);
+
         return {
           isDuplicate: true,
           duplicateName: p.fullName || p.full_name,
-          duplicateDept: p.department
+          duplicateDept: p.department,
+          existingRegistration: existingReg,
+          existingParticipants: matchingParts.length > 0 ? matchingParts : [existing]
         };
       }
     }
@@ -339,9 +371,19 @@ export const createRegistration = async ({ eventId, teamName, format, participan
     if (!dept) throw new Error(`Participant #${i + 1} department is required.`);
   }
 
-  // 4. Duplicate Prevention Rule
+  // 4. Duplicate Check: If already registered, gracefully retrieve the existing confirmed registration
   const uniquenessCheck = await checkParticipantUniqueness(eventId, participants);
   if (uniquenessCheck.isDuplicate) {
+    if (uniquenessCheck.existingRegistration) {
+      return {
+        registration: uniquenessCheck.existingRegistration,
+        participants: uniquenessCheck.existingParticipants || [],
+        referenceCode: uniquenessCheck.existingRegistration.reference_code,
+        event,
+        isExisting: true
+      };
+    }
+
     throw new Error(
       `Duplicate registration detected: "${uniquenessCheck.duplicateName}" (${uniquenessCheck.duplicateDept}) is already registered for ${event.name}.`
     );
@@ -386,8 +428,50 @@ export const createRegistration = async ({ eventId, teamName, format, participan
 
     if (partError) {
       console.error('Supabase participant insert error:', partError);
-      // Rollback registration
+      // Rollback orphaned registration
       await supabase.from('registrations').delete().eq('id', regData.id);
+
+      // If failed due to unique constraint, retrieve existing confirmed entry
+      if (partError.code === '23505' || partError.message?.includes('duplicate key') || partError.message?.includes('unique')) {
+        try {
+          for (const p of participants) {
+            const cleanName = (p.fullName || p.full_name || '').trim();
+            const cleanDept = (p.department || '').trim();
+            const { data: dupParts } = await supabase
+              .from('participants')
+              .select('id, registration_id, full_name, department, class_course')
+              .eq('event_id', eventId)
+              .ilike('full_name', cleanName)
+              .ilike('department', cleanDept);
+
+            if (dupParts && dupParts.length > 0 && dupParts[0].registration_id) {
+              const { data: existingReg } = await supabase
+                .from('registrations')
+                .select('*')
+                .eq('id', dupParts[0].registration_id)
+                .maybeSingle();
+
+              if (existingReg) {
+                const { data: allParts } = await supabase
+                  .from('participants')
+                  .select('*')
+                  .eq('registration_id', dupParts[0].registration_id);
+
+                return {
+                  registration: existingReg,
+                  participants: allParts && allParts.length > 0 ? allParts : dupParts,
+                  referenceCode: existingReg.reference_code,
+                  event,
+                  isExisting: true
+                };
+              }
+            }
+          }
+        } catch (findErr) {
+          console.warn('Error retrieving duplicate registration during constraint rollback:', findErr);
+        }
+      }
+
       throw new Error(`Database error saving participants: ${partError.message}`);
     }
 
