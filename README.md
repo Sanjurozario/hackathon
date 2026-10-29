@@ -1,16 +1,32 @@
-# React + Vite
+# VEXORIS Hackathon & Fest Platform
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Official event management, scoring, and registration platform built with React, Vite, TailwindCSS, and Supabase.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🚀 Supabase Setup Guide
 
-## React Compiler
+### 1. Configure Environment Variables
+Copy `.env.example` to `.env` in the root directory:
+```bash
+cp .env.example .env
+```
+Add your Supabase project credentials (from **Supabase Dashboard -> Project Settings -> API**):
+```env
+VITE_SUPABASE_URL=https://your-project-id.supabase.co
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key-here
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 2. Run Database Schema & Policies
+1. Open your Supabase Dashboard.
+2. Go to **SQL Editor** -> **New Query**.
+3. Copy and run the entire content of [`supabase/schema.sql`](supabase/schema.sql).
+   - This creates `events`, `registrations`, and `participants` tables.
+   - Sets up initial events matching the official catalog (`IT MANAGER`, `QUIZ`, `FUNZOVA`, `VEXTALK`, `DEBATE`, `BGMI`, `NFS`, `FREE FIRE`, `E-FOOTBALL`).
+   - Configures Row Level Security (RLS) policies allowing public registration and participant duplicate checks.
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+### 3. Run Locally
+```bash
+npm install
+npm run dev
+```

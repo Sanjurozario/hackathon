@@ -82,6 +82,14 @@ const initLocalStore = () => {
 
 // Exported function to clear all registrations and participants on demand
 export const clearAllRegistrations = async () => {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase.from('participants').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('registrations').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    } catch (e) {
+      console.warn('Could not clear Supabase tables:', e);
+    }
+  }
   localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEYS.PARTICIPANTS, JSON.stringify([]));
   return { success: true, message: 'All registrations and participants cleared.' };
@@ -345,8 +353,14 @@ export const createRegistration = async ({ eventId, teamName, format, participan
     );
   }
 
-  // 5. Generate distinct reference code
+  // 5. Generate distinct reference code and identifiers
   const referenceCode = generateReferenceCode();
+  const registrationUuid = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+    ? crypto.randomUUID()
+    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = Math.random() * 16 | 0;
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+      });
   const registrationId = `reg-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   const now = new Date().toISOString();
 
@@ -374,23 +388,32 @@ export const createRegistration = async ({ eventId, teamName, format, participan
   // 6. Try Supabase transaction/inserts if configured
   if (isSupabaseConfigured && supabase) {
     try {
+      const regInsertPayload = {
+        id: registrationUuid,
+        reference_code: referenceCode,
+        event_id: eventId,
+        format,
+        team_name: cleanTeamName,
+        participant_count: participants.length,
+        status: 'confirmed'
+      };
+
       const { data: regData, error: regError } = await supabase
         .from('registrations')
-        .insert([{
-          reference_code: referenceCode,
-          event_id: eventId,
-          format,
-          team_name: cleanTeamName,
-          participant_count: participants.length,
-          status: 'confirmed'
-        }])
+        .insert([regInsertPayload])
         .select()
-        .single();
+        .maybeSingle();
 
-      if (regError) throw regError;
+      if (regError) {
+        if (regError.code === '23505' || regError.message?.toLowerCase().includes('unique') || regError.message?.toLowerCase().includes('duplicate')) {
+          throw new Error(`Duplicate registration detected: Already registered for ${event.name}.`);
+        }
+        throw regError;
+      }
 
+      const effectiveRegId = regData?.id || registrationUuid;
       const participantPayload = participants.map(p => ({
-        registration_id: regData.id,
+        registration_id: effectiveRegId,
         event_id: eventId,
         full_name: p.fullName.trim(),
         class_course: p.classCourse.trim(),
@@ -403,20 +426,31 @@ export const createRegistration = async ({ eventId, teamName, format, participan
 
       if (partError) {
         // Rollback registration if participant insert fails
-        await supabase.from('registrations').delete().eq('id', regData.id);
+        try {
+          await supabase.from('registrations').delete().eq('id', effectiveRegId);
+        } catch (_) {}
+
+        if (partError.code === '23505' || partError.message?.toLowerCase().includes('unique') || partError.message?.toLowerCase().includes('duplicate')) {
+          throw new Error(`Duplicate registration detected: A participant is already registered for ${event.name}.`);
+        }
         throw partError;
       }
 
+      const finalReg = regData || { ...regInsertPayload, created_at: now };
+
       // Sync local storage as well for seamless instant cache
-      saveToLocalStore(regData, participantPayload);
+      saveToLocalStore(finalReg, participantPayload);
 
       return {
-        registration: regData,
+        registration: finalReg,
         participants: participantPayload,
-        referenceCode: regData.reference_code,
+        referenceCode,
         event
       };
     } catch (err) {
+      if (err.message && err.message.includes('Duplicate registration detected')) {
+        throw err;
+      }
       console.warn('Supabase write failed or network offline, persisting to local store:', err);
     }
   }
