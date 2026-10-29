@@ -76,6 +76,7 @@ function AppLayout() {
           <Route path="/about" element={<AboutPage />} />
           <Route path="/admin/login" element={<AdminLoginPage />} />
           <Route path="/admin" element={<AdminDashboardPage />} />
+          <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
           {/* Catch-all */}
           <Route path="*" element={<HomePage />} />
         </Routes>
