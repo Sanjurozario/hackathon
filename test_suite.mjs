@@ -42,25 +42,31 @@ import('./src/lib/db.js').then(async (db) => {
     throw new Error('Reference code does not match VX-XXXX format');
   }
 
-  console.log('\n--- TEST 4: Duplicate Handling & Existing Registration Retrieval ---');
-  const dupAttempt = await db.createRegistration({
+  console.log('\n--- TEST 4: Student Re-Registration Support (Recovery) ---');
+  const reReg = await db.createRegistration({
     eventId: 'it-manager',
     teamName: null,
     format: 'solo',
     participants: [{
-      fullName: 'Rohan Deshmukh', // Same participant and department
+      fullName: 'Rohan Deshmukh',
       classCourse: 'B.Tech CSE 3rd Year',
       department: 'Computer Science & Engineering'
     }]
   });
 
-  if (!dupAttempt.isExisting) {
-    throw new Error('Expected isExisting flag to be true when participant is already registered!');
+  if (!reReg.referenceCode || !reReg.referenceCode.startsWith('VX-')) {
+    throw new Error('Re-registration failed to generate a valid reference code!');
   }
-  if (dupAttempt.referenceCode !== soloReg.referenceCode) {
-    throw new Error(`Expected reference code ${soloReg.referenceCode}, got ${dupAttempt.referenceCode}`);
+  console.log(`✓ Re-registration allowed and confirmed! New Ref: ${reReg.referenceCode}`);
+
+  console.log('\n--- TEST 4B: Individual Registration Deletion by Admin ---');
+  const initialCount = (await db.getRegistrationsWithParticipants()).length;
+  await db.deleteRegistration(reReg.registration.id);
+  const updatedRegs = await db.getRegistrationsWithParticipants();
+  if (updatedRegs.some(r => r.id === reReg.registration.id)) {
+    throw new Error('Deleted registration was still found in registrations list!');
   }
-  console.log(`✓ Gracefully retrieved existing registration! Ref: ${dupAttempt.referenceCode}, isExisting: ${dupAttempt.isExisting}`);
+  console.log(`✓ Successfully deleted registration ${reReg.referenceCode}. Count reduced from ${initialCount} to ${updatedRegs.length}`);
 
   console.log('\n--- TEST 5: Group Registration with Diverse Classes/Depts (BGMI) ---');
   const groupReg = await db.createRegistration({

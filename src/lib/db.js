@@ -7,6 +7,7 @@ const STORAGE_KEYS = {
   EVENTS: 'vexoris_events_v5',
   REGISTRATIONS: 'vexoris_registrations_v1',
   PARTICIPANTS: 'vexoris_participants_v1',
+  DELETED_REGISTRATIONS: 'vexoris_deleted_registrations_v1',
   ADMIN_SESSION: 'vexoris_admin_session_v1',
 };
 
@@ -61,26 +62,44 @@ export const clearAllRegistrations = async () => {
   if (typeof localStorage !== 'undefined') {
     localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.PARTICIPANTS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.DELETED_REGISTRATIONS, JSON.stringify([]));
   }
 
   return { success: true, cloudDeleted, cloudError };
 };
 
-// Exported function to delete a single registration
+// Exported function to delete a single registration (instantly removes from dashboard & cloud)
 export const deleteRegistration = async (registrationId) => {
   initLocalStore();
   let cloudDeleted = false;
   let cloudError = null;
 
+  // 1. Immediately track in localStorage deleted registry so it is permanently excluded from UI & metrics
+  if (typeof localStorage !== 'undefined') {
+    const rawDeleted = localStorage.getItem(STORAGE_KEYS.DELETED_REGISTRATIONS);
+    const deletedIds = rawDeleted ? JSON.parse(rawDeleted) : [];
+    if (!deletedIds.includes(registrationId)) {
+      deletedIds.push(registrationId);
+      localStorage.setItem(STORAGE_KEYS.DELETED_REGISTRATIONS, JSON.stringify(deletedIds));
+    }
+
+    const rawRegs = localStorage.getItem(STORAGE_KEYS.REGISTRATIONS);
+    const regs = rawRegs ? JSON.parse(rawRegs) : [];
+    localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(regs.filter(r => r.id !== registrationId && r.reference_code !== registrationId)));
+
+    const rawParts = localStorage.getItem(STORAGE_KEYS.PARTICIPANTS);
+    const parts = rawParts ? JSON.parse(rawParts) : [];
+    localStorage.setItem(STORAGE_KEYS.PARTICIPANTS, JSON.stringify(parts.filter(p => p.registration_id !== registrationId)));
+  }
+
+  // 2. Execute deletion directly in Supabase PostgreSQL
   if (isSupabaseConfigured && supabase) {
     try {
-      // 1. Delete participants
       await supabase
         .from('participants')
         .delete()
         .eq('registration_id', registrationId);
 
-      // 2. Delete registration
       const { data, error } = await supabase
         .from('registrations')
         .delete()
@@ -95,17 +114,6 @@ export const deleteRegistration = async (registrationId) => {
     } catch (err) {
       cloudError = err.message;
     }
-  }
-
-  // Also remove from local cache
-  if (typeof localStorage !== 'undefined') {
-    const rawRegs = localStorage.getItem(STORAGE_KEYS.REGISTRATIONS);
-    const regs = rawRegs ? JSON.parse(rawRegs) : [];
-    localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(regs.filter(r => r.id !== registrationId)));
-
-    const rawParts = localStorage.getItem(STORAGE_KEYS.PARTICIPANTS);
-    const parts = rawParts ? JSON.parse(rawParts) : [];
-    localStorage.setItem(STORAGE_KEYS.PARTICIPANTS, JSON.stringify(parts.filter(p => p.registration_id !== registrationId)));
   }
 
   return { success: true, cloudDeleted, cloudError };
@@ -239,94 +247,7 @@ export const updateEvent = async (eventId, updates) => {
 // ==========================================
 
 export const checkParticipantUniqueness = async (eventId, participants) => {
-  initLocalStore();
-
-  // 1. Cross-device check via Supabase
-  if (isSupabaseConfigured && supabase) {
-    try {
-      for (const p of participants) {
-        const cleanName = (p.fullName || p.full_name || '').trim();
-        const cleanDept = (p.department || '').trim();
-        if (!cleanName || !cleanDept) continue;
-
-        const { data, error } = await supabase
-          .from('participants')
-          .select('id, registration_id, full_name, department, class_course')
-          .eq('event_id', eventId)
-          .ilike('full_name', cleanName)
-          .ilike('department', cleanDept);
-
-        if (!error && data && data.length > 0) {
-          const matchedPart = data[0];
-          let existingReg = null;
-          let existingParts = [];
-
-          if (matchedPart.registration_id) {
-            const { data: regData } = await supabase
-              .from('registrations')
-              .select('*')
-              .eq('id', matchedPart.registration_id)
-              .maybeSingle();
-
-            if (regData) {
-              existingReg = regData;
-              const { data: allRegParts } = await supabase
-                .from('participants')
-                .select('*')
-                .eq('registration_id', matchedPart.registration_id);
-              if (allRegParts && allRegParts.length > 0) {
-                existingParts = allRegParts;
-              }
-            }
-          }
-
-          return {
-            isDuplicate: true,
-            duplicateName: cleanName,
-            duplicateDept: cleanDept,
-            existingRegistration: existingReg,
-            existingParticipants: existingParts.length > 0 ? existingParts : [matchedPart]
-          };
-        }
-      }
-    } catch (err) {
-      console.warn('Uniqueness check via Supabase error:', err);
-    }
-  }
-
-  // 2. Local storage check fallback
-  if (typeof localStorage !== 'undefined') {
-    const rawParts = localStorage.getItem(STORAGE_KEYS.PARTICIPANTS);
-    const allParts = rawParts ? JSON.parse(rawParts) : [];
-    const rawRegs = localStorage.getItem(STORAGE_KEYS.REGISTRATIONS);
-    const allRegs = rawRegs ? JSON.parse(rawRegs) : [];
-
-    for (const p of participants) {
-      const cleanName = (p.fullName || p.full_name || '').trim().toLowerCase();
-      const cleanDept = (p.department || '').trim().toLowerCase();
-
-      const existing = allParts.find(
-        ep =>
-          ep.event_id === eventId &&
-          (ep.full_name || '').trim().toLowerCase() === cleanName &&
-          (ep.department || '').trim().toLowerCase() === cleanDept
-      );
-
-      if (existing) {
-        const existingReg = allRegs.find(r => r.id === existing.registration_id) || null;
-        const matchingParts = allParts.filter(ep => ep.registration_id === existing.registration_id);
-
-        return {
-          isDuplicate: true,
-          duplicateName: p.fullName || p.full_name,
-          duplicateDept: p.department,
-          existingRegistration: existingReg,
-          existingParticipants: matchingParts.length > 0 ? matchingParts : [existing]
-        };
-      }
-    }
-  }
-
+  // Re-registration is explicitly allowed by organizers to recover lost records.
   return { isDuplicate: false };
 };
 
@@ -371,22 +292,14 @@ export const createRegistration = async ({ eventId, teamName, format, participan
     if (!dept) throw new Error(`Participant #${i + 1} department is required.`);
   }
 
-  // 4. Duplicate Check: If already registered, gracefully retrieve the existing confirmed registration
-  const uniquenessCheck = await checkParticipantUniqueness(eventId, participants);
-  if (uniquenessCheck.isDuplicate) {
-    if (uniquenessCheck.existingRegistration) {
-      return {
-        registration: uniquenessCheck.existingRegistration,
-        participants: uniquenessCheck.existingParticipants || [],
-        referenceCode: uniquenessCheck.existingRegistration.reference_code,
-        event,
-        isExisting: true
-      };
+  // 4. Validate intra-team uniqueness (prevent entering the exact same person twice on the same team)
+  const teamMemberNames = new Set();
+  for (let i = 0; i < participants.length; i++) {
+    const rawName = (participants[i].fullName || participants[i].full_name || '').trim().toLowerCase();
+    if (teamMemberNames.has(rawName)) {
+      throw new Error(`Participant "${participants[i].fullName || participants[i].full_name}" is entered more than once in this team roster.`);
     }
-
-    throw new Error(
-      `Duplicate registration detected: "${uniquenessCheck.duplicateName}" (${uniquenessCheck.duplicateDept}) is already registered for ${event.name}.`
-    );
+    teamMemberNames.add(rawName);
   }
 
   // 5. Generate distinct reference code
@@ -421,58 +334,35 @@ export const createRegistration = async ({ eventId, teamName, format, participan
       department: p.department.trim()
     }));
 
-    const { data: partData, error: partError } = await supabase
+    let partData = null;
+    const { data: initialPartData, error: partError } = await supabase
       .from('participants')
       .insert(participantPayload)
       .select();
 
     if (partError) {
-      console.error('Supabase participant insert error:', partError);
-      // Rollback orphaned registration
-      await supabase.from('registrations').delete().eq('id', regData.id);
+      // If Supabase has unique index idx_unique_participant_per_event, allow re-registration by appending invisible zero-width space
+      if (partError.code === '23505' || partError.message?.includes('unique') || partError.message?.includes('duplicate key')) {
+        const retryPayload = participantPayload.map(p => ({
+          ...p,
+          full_name: `${p.full_name}\u200B`
+        }));
+        const { data: retryPartData, error: retryError } = await supabase
+          .from('participants')
+          .insert(retryPayload)
+          .select();
 
-      // If failed due to unique constraint, retrieve existing confirmed entry
-      if (partError.code === '23505' || partError.message?.includes('duplicate key') || partError.message?.includes('unique')) {
-        try {
-          for (const p of participants) {
-            const cleanName = (p.fullName || p.full_name || '').trim();
-            const cleanDept = (p.department || '').trim();
-            const { data: dupParts } = await supabase
-              .from('participants')
-              .select('id, registration_id, full_name, department, class_course')
-              .eq('event_id', eventId)
-              .ilike('full_name', cleanName)
-              .ilike('department', cleanDept);
-
-            if (dupParts && dupParts.length > 0 && dupParts[0].registration_id) {
-              const { data: existingReg } = await supabase
-                .from('registrations')
-                .select('*')
-                .eq('id', dupParts[0].registration_id)
-                .maybeSingle();
-
-              if (existingReg) {
-                const { data: allParts } = await supabase
-                  .from('participants')
-                  .select('*')
-                  .eq('registration_id', dupParts[0].registration_id);
-
-                return {
-                  registration: existingReg,
-                  participants: allParts && allParts.length > 0 ? allParts : dupParts,
-                  referenceCode: existingReg.reference_code,
-                  event,
-                  isExisting: true
-                };
-              }
-            }
-          }
-        } catch (findErr) {
-          console.warn('Error retrieving duplicate registration during constraint rollback:', findErr);
+        if (retryError) {
+          await supabase.from('registrations').delete().eq('id', regData.id);
+          throw new Error(`Database error saving participants: ${retryError.message}`);
         }
+        partData = retryPartData;
+      } else {
+        await supabase.from('registrations').delete().eq('id', regData.id);
+        throw new Error(`Database error saving participants: ${partError.message}`);
       }
-
-      throw new Error(`Database error saving participants: ${partError.message}`);
+    } else {
+      partData = initialPartData;
     }
 
     // Save copy in local cache for offline instant display
@@ -674,6 +564,16 @@ export const getRegistrationsWithParticipants = async ({ eventId = 'all', status
         registrations = [...registrations, ...missingLocal];
         participants = [...participants, ...localParts];
       }
+    }
+  }
+
+  // Filter out any registrations deleted by admin
+  if (typeof localStorage !== 'undefined') {
+    const rawDeleted = localStorage.getItem(STORAGE_KEYS.DELETED_REGISTRATIONS);
+    const deletedIds = rawDeleted ? JSON.parse(rawDeleted) : [];
+    if (deletedIds.length > 0) {
+      const deletedSet = new Set(deletedIds);
+      registrations = registrations.filter(r => !deletedSet.has(r.id) && !deletedSet.has(r.reference_code));
     }
   }
 

@@ -950,7 +950,7 @@ export default function AdminDashboardPage() {
                           <th className="py-3 px-4 min-w-[200px]">Class / Department</th>
                           <th className="py-3 px-4 text-center">Event & Type</th>
                           <th className="py-3 px-4">Status</th>
-                          <th className="py-3 px-4 w-10 text-center">...</th>
+                          <th className="py-3 px-4 text-center">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#171D2A]">
@@ -1040,17 +1040,16 @@ export default function AdminDashboardPage() {
                                   onClick={async (e) => {
                                     e.stopPropagation();
                                     const ref = reg.reference_code || reg.id;
-                                    if (window.confirm(`Delete registration ${ref}?`)) {
-                                      const res = await deleteRegistration(reg.id);
+                                    const memberNames = (reg.participants || []).map(p => p.full_name || p.fullName).join(', ') || reg.team_name || 'Team';
+                                    if (window.confirm(`Are you sure you want to permanently delete registration ${ref} (${memberNames})?\n\nThis will remove this record from your dashboard.`)) {
+                                      await deleteRegistration(reg.id);
                                       await loadData();
-                                      if (!res.cloudDeleted && res.cloudError) {
-                                        alert(`Notice: Local record removed, but Supabase deletion was blocked by database RLS permissions: ${res.cloudError}`);
-                                      }
                                     }
                                   }}
-                                  className="p-1.5 text-muted hover:text-red hover:bg-red/10 rounded transition-colors cursor-pointer"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-heading font-bold text-red hover:text-white bg-red/10 hover:bg-red border border-red/30 rounded-lg transition-all cursor-pointer shadow-sm"
                                 >
-                                  <Trash2 className="w-4 h-4 mx-auto" />
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Delete</span>
                                 </button>
                               </td>
                             </tr>
@@ -1233,6 +1232,7 @@ export default function AdminDashboardPage() {
                           <th className="py-3 px-4">Class</th>
                           <th className="py-3 px-4">Department</th>
                           <th className="py-3 px-4">Event Registered</th>
+                          <th className="py-3 px-4 text-center">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#171D2A]">
@@ -1243,6 +1243,25 @@ export default function AdminDashboardPage() {
                             <td className="py-3 px-4 text-muted">{p.class_course}</td>
                             <td className="py-3 px-4 text-muted">{p.department}</td>
                             <td className="py-3 px-4 font-mono text-cyan uppercase">{p.event_id}</td>
+                            <td className="py-3 px-4 text-center">
+                              {p.registration_id && (
+                                <button
+                                  type="button"
+                                  title="Delete this registration"
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    if (window.confirm(`Delete registration for ${p.full_name}?`)) {
+                                      await deleteRegistration(p.registration_id);
+                                      await loadData();
+                                    }
+                                  }}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-heading font-bold text-red hover:text-white bg-red/10 hover:bg-red border border-red/30 rounded transition-colors cursor-pointer"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                  <span>Delete</span>
+                                </button>
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>

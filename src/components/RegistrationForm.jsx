@@ -154,19 +154,11 @@ export default function RegistrationForm({ event, onComplete }) {
 
         {/* Big Bold Headline */}
         <h2 className="font-heading font-black text-3xl sm:text-4xl text-white tracking-tight uppercase mb-2">
-          {submissionResult.isExisting ? 'REGISTRATION ALREADY CONFIRMED' : 'REGISTRATION CONFIRMED'}
+          REGISTRATION CONFIRMED
         </h2>
-        <p className="text-slate-300 text-sm font-sans mb-4">
-          {submissionResult.isExisting
-            ? <>Your entry for <strong className="text-white">{event.name}</strong> was already registered. Here are your retrieved credentials.</>
-            : <>Your entry for <strong className="text-white">{event.name}</strong> is officially locked in.</>}
+        <p className="text-slate-300 text-sm font-sans mb-6">
+          Your entry for <strong className="text-white">{event.name}</strong> is officially locked in.
         </p>
-
-        {submissionResult.isExisting && (
-          <div className="bg-cyan/10 border border-cyan/30 rounded-xl p-3 mb-6 text-cyan text-xs text-center font-mono font-medium">
-            Retrieved existing registration record. You are already officially enrolled.
-          </div>
-        )}
 
         {/* Confirmation Details Card */}
         <div className="bg-[#0D1017] border border-[#1E2536] rounded-2xl p-6 mb-8 text-left space-y-3.5 text-sm">

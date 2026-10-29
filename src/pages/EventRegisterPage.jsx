@@ -439,19 +439,11 @@ export default function EventRegisterPage() {
 
             {/* Success Heading */}
             <h2 className="font-heading font-black text-2xl sm:text-3xl text-white tracking-tight uppercase mb-1">
-              {successModalData.isExisting ? 'REGISTRATION ALREADY CONFIRMED!' : 'YOU HAVE SUCCESSFULLY REGISTERED!'}
+              YOU HAVE SUCCESSFULLY REGISTERED!
             </h2>
-            <p className="text-slate-300 text-sm font-sans mb-4">
-              {successModalData.isExisting
-                ? 'Your registration was previously confirmed. Here is your official registration reference code:'
-                : 'Your registration slot has been officially confirmed.'}
+            <p className="text-slate-300 text-sm font-sans mb-6">
+              Your registration slot has been officially confirmed.
             </p>
-
-            {successModalData.isExisting && (
-              <div className="bg-cyan/10 border border-cyan/30 rounded-xl p-2.5 mb-5 text-cyan text-xs text-center font-mono font-medium">
-                Retrieved existing registration record. You are already officially enrolled.
-              </div>
-            )}
 
             {/* Confirmation Details Card */}
             <div className="bg-[#0D1017] border border-[#1E2536] rounded-2xl p-4 sm:p-5 mb-6 text-left space-y-2.5 text-xs sm:text-sm font-sans">

@@ -49,10 +49,10 @@ CREATE TABLE IF NOT EXISTS public.participants (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Uniqueness Enforcement:
--- Prevent a participant with the same Name and Department from submitting twice to the same event
-CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_participant_per_event
-  ON public.participants (event_id, LOWER(TRIM(full_name)), LOWER(TRIM(department)));
+-- 4. Indexing for High Performance:
+-- (Unique index dropped to allow students to re-register freely when requested by organizers)
+DROP INDEX IF EXISTS idx_unique_participant_per_event;
+CREATE INDEX IF NOT EXISTS idx_participants_lookup ON public.participants (event_id, full_name, department);
 
 -- Create indexes for fast search and joins
 CREATE INDEX IF NOT EXISTS idx_participants_reg_id ON public.participants(registration_id);
