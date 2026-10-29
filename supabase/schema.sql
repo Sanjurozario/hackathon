@@ -73,7 +73,7 @@ VALUES
    'From the early silicon pioneers to neural network architectures, quantum supremacy, and underground cyber culture. Test your technical knowledge in an intense multi-round buzzer tournament.',
    'District Alpha (Technical Hub)', 'cyan'),
   
-  ('funzova', 'FUNZOVA', 'Technical', 'group', 2, 4, true,
+  ('funzova', 'FUNZOVA', 'Technical', 'solo', 1, 1, true,
    'Unconventional tech-entertainment fusion: blind coding, reverse engineering, and puzzle decoding.',
    'Funzova breaks the monotony of traditional tech challenges. Experience high-speed code relays, blindfolded algorithmic typing, cryptic clue hunts, and quirky engineering problem-solving.',
    'District Alpha (Technical Hub)', 'cyan'),
@@ -88,7 +88,7 @@ VALUES
    'Clash heads on the critical controversies shaping tomorrow’s digital civilisation. Argue for or against motions on AI autonomy, surveillance capitalism, decentralized economics, and cyber warfare.',
    'District Alpha (Technical Hub)', 'cyan'),
   
-  ('bgmi', 'BGMI', 'Gaming', 'group', 4, 4, true,
+  ('bgmi', 'BGMI', 'Gaming', 'group', 3, 4, true,
    'Squad-based tactical battle royale across Erangel and Miramar. Survival is everything.',
    'Drop into high-intensity drop zones. Coordinate rotations, secure airdrop weaponry, and hold choke points in the ultimate tactical mobile esports showdown.',
    'District Beta (Gaming Arena)', 'red'),
@@ -98,16 +98,25 @@ VALUES
    'Rubber meets asphalt in a battle of pure precision and nerve. Race through neon-soaked metropolitan expressways and switchbacks under intense tournament bracket conditions.',
    'District Beta (Gaming Arena)', 'red'),
   
-  ('deadshot', 'DEADSHOT', 'Gaming', 'solo', 1, 1, true,
-   'Precision FPS reflex shootout. Quick-scoping, snap aiming, and tactical reaction time.',
-   'One bullet, one target. Step into the virtual firing range and 1v1 arenas where milliseconds determine the victor. Test your hand-eye coordination against the sharpest collegiate shooters.',
+  ('free-fire', 'FREE FIRE', 'Gaming', 'group', 3, 4, true,
+   'Premier mobile battle royale championship across Kalahari, Purgatory, and Bermuda.',
+   'Fast-paced squad combat across three battleground maps. Outmaneuver opponents and claim the ultimate Booyah in high-stakes survival circles.',
    'District Beta (Gaming Arena)', 'red'),
   
-  ('real-cricket', 'REAL CRICKET', 'Gaming', 'solo', 1, 1, true,
-   'Virtual willow warfare. Shot selection, field placements, and clutch over bowling under pressure.',
-   'The thrill of the stadium in the palm of your hand. Execute delicate late cuts, towering sixes over long-on, and unplayable yorkers in tense head-to-head limited-overs matches.',
+  ('efootball', 'E-FOOTBALL', 'Gaming', 'solo', 1, 1, true,
+   'The beautiful virtual game: precise dribbling, counter-attacks, and penalty drama.',
+   'Rubber meets turf in direct 1v1 tactical football combat. Test your formation mastery, passing accuracy, and clutch finishing.',
    'District Beta (Gaming Arena)', 'red')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  category = EXCLUDED.category,
+  format = EXCLUDED.format,
+  min_team_size = EXCLUDED.min_team_size,
+  max_team_size = EXCLUDED.max_team_size,
+  short_description = EXCLUDED.short_description,
+  full_description = EXCLUDED.full_description,
+  district = EXCLUDED.district,
+  accent = EXCLUDED.accent;
 
 -- ==============================================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
@@ -121,6 +130,7 @@ ALTER TABLE public.participants ENABLE ROW LEVEL SECURITY;
 -- Anyone can view events
 CREATE POLICY "Public can view events" 
   ON public.events FOR SELECT 
+  TO anon, authenticated 
   USING (true);
 
 -- Only authenticated admins can modify events
@@ -137,22 +147,24 @@ CREATE POLICY "Public can register"
   TO anon, authenticated 
   WITH CHECK (true);
 
--- Only authenticated admins can view registrations (Strict privacy)
-CREATE POLICY "Admins can view registrations" 
+-- Public & Admins can view registrations (Required for dashboard & verification)
+CREATE POLICY "Public and Admins can view registrations" 
   ON public.registrations FOR SELECT 
-  TO authenticated 
+  TO anon, authenticated 
   USING (true);
 
--- Only authenticated admins can update/delete registrations
+-- Authenticated admins can update/delete registrations
 CREATE POLICY "Admins can update registrations" 
   ON public.registrations FOR UPDATE 
   TO authenticated 
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Admins can delete registrations" 
+DROP POLICY IF EXISTS "Admins can delete registrations" ON public.registrations;
+DROP POLICY IF EXISTS "Allow delete registrations" ON public.registrations;
+CREATE POLICY "Allow delete registrations" 
   ON public.registrations FOR DELETE 
-  TO authenticated 
+  TO anon, authenticated 
   USING (true);
 
 -- Participants Policies:
@@ -162,20 +174,22 @@ CREATE POLICY "Public can insert participants"
   TO anon, authenticated 
   WITH CHECK (true);
 
--- Only authenticated admins can view participant information
-CREATE POLICY "Admins can view participants" 
+-- Public and Admins can view participants (Required for duplicate checking and roster display)
+CREATE POLICY "Public and Admins can view participants" 
   ON public.participants FOR SELECT 
-  TO authenticated 
+  TO anon, authenticated 
   USING (true);
 
--- Only authenticated admins can modify/delete participants
+-- Authenticated admins can modify/delete participants
 CREATE POLICY "Admins can update participants" 
   ON public.participants FOR UPDATE 
   TO authenticated 
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Admins can delete participants" 
+DROP POLICY IF EXISTS "Admins can delete participants" ON public.participants;
+DROP POLICY IF EXISTS "Allow delete participants" ON public.participants;
+CREATE POLICY "Allow delete participants" 
   ON public.participants FOR DELETE 
-  TO authenticated 
+  TO anon, authenticated 
   USING (true);

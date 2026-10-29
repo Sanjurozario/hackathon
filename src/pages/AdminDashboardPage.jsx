@@ -22,7 +22,8 @@ import {
   Gamepad2,
   ArrowLeft,
   ExternalLink,
-  Building2
+  Building2,
+  Trash2
 } from 'lucide-react';
 import { 
   getAdminSession, 
@@ -31,7 +32,10 @@ import {
   updateEvent, 
   getDashboardMetrics, 
   getRegistrationsWithParticipants,
-  clearAllRegistrations
+  clearAllRegistrations,
+  deleteRegistration,
+  syncLocalRegistrationsToCloud,
+  isSupabaseConfigured
 } from '../lib/db';
 import PrintRosterModal from '../components/PrintRosterModal';
 
@@ -64,6 +68,24 @@ export default function AdminDashboardPage() {
   // Event Editing
   const [editingEventId, setEditingEventId] = useState(null);
   const [editForm, setEditForm] = useState(null);
+  const [syncingCloud, setSyncingCloud] = useState(false);
+
+  const handleSyncToCloud = async () => {
+    setSyncingCloud(true);
+    try {
+      const res = await syncLocalRegistrationsToCloud();
+      if (res.success) {
+        alert(res.synced > 0 ? `Successfully uploaded ${res.synced} offline registration(s) to Supabase database!` : 'All local registrations are already synchronized with Supabase.');
+        await loadData();
+      } else {
+        alert(res.reason || res.error || 'Sync failed. Verify Supabase connection.');
+      }
+    } catch (e) {
+      alert(`Sync failed: ${e.message}`);
+    } finally {
+      setSyncingCloud(false);
+    }
+  };
 
   // Fetch metrics & records (Always load complete dataset for instant client filtering & analytics)
   const loadData = async () => {
@@ -469,12 +491,27 @@ export default function AdminDashboardPage() {
               </Link>
             </div>
             <span className="text-xs font-mono text-muted hidden sm:inline">
-              Mode: <strong className="text-cyan">{session.mode === 'supabase' ? 'PostgreSQL Live' : 'Local Atomic DB'}</strong>
+              Database: <strong className={isSupabaseConfigured ? 'text-emerald-400' : 'text-amber-400'}>
+                {isSupabaseConfigured ? '🟢 Supabase Live Cloud' : '🟠 Local Offline (Database Disconnected)'}
+              </strong>
             </span>
           </div>
 
           {/* User Profile Pill & Quick Actions matching Panel 9: Admin ▼ */}
           <div className="flex items-center gap-3 sm:gap-4">
+            {isSupabaseConfigured && (
+              <button
+                type="button"
+                onClick={handleSyncToCloud}
+                disabled={syncingCloud}
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 rounded-full text-xs font-heading font-bold text-emerald-400 transition-all cursor-pointer"
+                title="Sync offline local registrations to Supabase database"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${syncingCloud ? 'animate-spin' : ''}`} />
+                <span>{syncingCloud ? 'Syncing...' : 'Sync to Supabase'}</span>
+              </button>
+            )}
+
             <Link
               to="/"
               className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#141924] hover:bg-[#1C2332] border border-[#202838] hover:border-cyan/40 rounded-full text-xs font-heading font-bold text-slate-300 hover:text-white transition-all"
@@ -521,6 +558,31 @@ export default function AdminDashboardPage() {
                   Overview of event registrations
                 </p>
               </div>
+
+              {/* Offline / Local Storage Warning Banner */}
+              {!isSupabaseConfigured && (
+                <div className="p-4 sm:p-5 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-start gap-3.5 text-amber-200 shadow-lg">
+                  <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400 shrink-0 mt-0.5">
+                    <Terminal className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1.5 text-xs font-sans">
+                    <div className="flex items-center gap-2">
+                      <span className="font-heading font-black text-white text-sm uppercase tracking-wide">
+                        Supabase Disconnected — Local Fallback Active
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-mono text-[10px] uppercase font-bold">
+                        Offline Mode
+                      </span>
+                    </div>
+                    <p className="text-amber-200/90 leading-relaxed">
+                      Registrations are currently saving into the browser cache of each student's personal device because <code className="bg-black/50 px-1.5 py-0.5 rounded text-amber-300 font-mono">VITE_SUPABASE_URL</code> is not configured.
+                    </p>
+                    <p className="text-amber-200/80 leading-relaxed">
+                      👉 <strong>To connect Supabase:</strong> Set <code className="bg-black/50 px-1.5 py-0.5 rounded text-amber-300 font-mono">VITE_SUPABASE_URL</code> and <code className="bg-black/50 px-1.5 py-0.5 rounded text-amber-300 font-mono">VITE_SUPABASE_ANON_KEY</code> in <code className="bg-black/50 px-1.5 py-0.5 rounded text-amber-300 font-mono">.env</code> (and your Netlify settings).
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* 3 Overview Metric Cards matching Panel 9 */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
@@ -971,8 +1033,25 @@ export default function AdminDashboardPage() {
                                 </span>
                               </td>
 
-                              <td className="py-3.5 px-4 text-center text-muted hover:text-ivory cursor-pointer">
-                                <MoreVertical className="w-4 h-4 mx-auto" />
+                              <td className="py-3.5 px-4 text-center">
+                                <button
+                                  type="button"
+                                  title="Delete this registration"
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    const ref = reg.reference_code || reg.id;
+                                    if (window.confirm(`Delete registration ${ref}?`)) {
+                                      const res = await deleteRegistration(reg.id);
+                                      await loadData();
+                                      if (!res.cloudDeleted && res.cloudError) {
+                                        alert(`Notice: Local record removed, but Supabase deletion was blocked by database RLS permissions: ${res.cloudError}`);
+                                      }
+                                    }
+                                  }}
+                                  className="p-1.5 text-muted hover:text-red hover:bg-red/10 rounded transition-colors cursor-pointer"
+                                >
+                                  <Trash2 className="w-4 h-4 mx-auto" />
+                                </button>
                               </td>
                             </tr>
                           );
@@ -1191,7 +1270,7 @@ export default function AdminDashboardPage() {
               <div className="space-y-4 text-xs font-mono">
                 <div className="p-4 bg-[#0C0F16] rounded-lg border border-[#1C2331] space-y-1">
                   <span className="text-muted block text-[10px] uppercase">Storage Engine</span>
-                  <div className="text-cyan font-bold">{session.mode === 'supabase' ? 'Supabase Live Connected' : 'Local Atomic Resilient Cache'}</div>
+                  <div className="text-cyan font-bold">{isSupabaseConfigured ? 'Supabase Live Connected (PostgreSQL)' : 'Local Storage (Offline Cache)'}</div>
                 </div>
 
                 <div className="p-4 bg-[#0C0F16] rounded-lg border border-[#1C2331] space-y-1">
@@ -1213,9 +1292,15 @@ export default function AdminDashboardPage() {
                     type="button"
                     onClick={async () => {
                       if (window.confirm('Are you sure you want to permanently clear all registration entries? This action cannot be undone.')) {
-                        await clearAllRegistrations();
+                        const res = await clearAllRegistrations();
                         await loadData();
-                        alert('All registrations have been cleared.');
+                        if (res.cloudDeleted) {
+                          alert('All registrations and participants have been permanently cleared from Supabase and local cache.');
+                        } else {
+                          alert(
+                            'Local cache was cleared.\n\nNOTE FOR SUPABASE: If existing test records remain visible in the dashboard, run this 1-line command in your Supabase SQL Editor to wipe them completely:\n\nTRUNCATE TABLE public.participants, public.registrations CASCADE;'
+                          );
+                        }
                       }
                     }}
                     className="px-4 py-2 bg-red/20 hover:bg-red/30 border border-red/40 text-red text-xs font-heading font-bold rounded-lg transition-colors cursor-pointer"

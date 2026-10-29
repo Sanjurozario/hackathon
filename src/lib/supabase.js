@@ -10,8 +10,10 @@ const getEnvVar = (key) => {
   return '';
 };
 
-const supabaseUrl = getEnvVar('VITE_SUPABASE_URL');
-const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY');
+const rawUrl = (getEnvVar('VITE_SUPABASE_URL') || '').trim();
+// Strip trailing slashes or accidental /rest/v1 paths
+export const supabaseUrl = rawUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
+export const supabaseAnonKey = (getEnvVar('VITE_SUPABASE_ANON_KEY') || '').trim();
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl && 

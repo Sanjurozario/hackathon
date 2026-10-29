@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import CustomCursor from './components/CustomCursor';
+import IntroVideoOverlay from './components/IntroVideoOverlay';
 
 import HomePage from './pages/HomePage';
 import EventsPage from './pages/EventsPage';
@@ -12,6 +13,7 @@ import AboutPage from './pages/AboutPage';
 import RulesPage from './pages/RulesPage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
+import { syncLocalRegistrationsToCloud } from './lib/db';
 
 // Scroll to top on every route change
 function ScrollToTop() {
@@ -28,10 +30,18 @@ function AppLayout() {
   const isAdminPage = location.pathname.startsWith('/admin');
   const isHomePage = location.pathname === '/';
 
+  // Automatically attempt background cloud sync for any offline registrations on this device
+  useEffect(() => {
+    syncLocalRegistrationsToCloud().catch(() => {});
+  }, []);
+
   return (
     <div className="flex flex-col min-h-screen bg-[#0B0D11] text-[#F3F0E8] relative selection:bg-[#E5385D]/30 selection:text-[#FFFFFF]">
       <ScrollToTop />
       
+      {/* Intro Video Overlay (Plays full screen on site arrival with Skip button and auto-fade on finish) */}
+      {!isAdminPage && <IntroVideoOverlay />}
+
       {/* Custom smooth desktop cursor */}
       <CustomCursor />
 

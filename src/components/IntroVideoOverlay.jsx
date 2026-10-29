@@ -1,0 +1,215 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { Volume2, VolumeX, SkipForward } from 'lucide-react';
+
+/**
+ * IntroVideoOverlay
+ * Plays a full-screen teaser video with AUDIO when user opens the website.
+ * - Attempts to play with full audio immediately.
+ * - If browser autoplay policy blocks unmuted audio, it starts video smoothly
+ *   and provides a 1-tap screen unmute (clicking anywhere turns sound ON).
+ * - FastStart streamable MP4 support with loading spinner while buffering.
+ * - Prominent Skip button available anytime.
+ * - Automatically fades out to website when video ends.
+ */
+export default function IntroVideoOverlay({ 
+  videoSrc = '/intro.mp4',
+  onFinished
+}) {
+  const [isVisible, setIsVisible] = useState(true);
+  const [isFading, setIsFading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isMuted, setIsMuted] = useState(false); // default attempt with sound
+  const [showUnmuteHint, setShowUnmuteHint] = useState(false);
+  const videoRef = useRef(null);
+
+  // Support replaying intro on demand or from console
+  useEffect(() => {
+    window.replayIntroVideo = () => {
+      sessionStorage.removeItem('vexoris_intro_seen');
+      setIsFading(false);
+      setIsVisible(true);
+    };
+  }, []);
+
+  // Check if already viewed in this browser session
+  useEffect(() => {
+    const hasSeen = sessionStorage.getItem('vexoris_intro_seen');
+    if (hasSeen) {
+      setIsVisible(false);
+    }
+  }, []);
+
+  const handleDismiss = (markSeen = true) => {
+    if (isFading) return;
+    setIsFading(true);
+    if (markSeen) {
+      sessionStorage.setItem('vexoris_intro_seen', 'true');
+    }
+    setTimeout(() => {
+      setIsVisible(false);
+      if (onFinished) onFinished();
+    }, 700); // Matches CSS transition duration
+  };
+
+  const toggleSound = () => {
+    if (!videoRef.current) return;
+    const newMuted = !videoRef.current.muted;
+    videoRef.current.muted = newMuted;
+    setIsMuted(newMuted);
+    if (!newMuted) setShowUnmuteHint(false);
+  };
+
+  // Unmute on any user interaction with the screen
+  const handleScreenClick = (e) => {
+    if (e.target.closest('button')) return; // let buttons handle their own clicks
+    if (isMuted && videoRef.current) {
+      videoRef.current.muted = false;
+      setIsMuted(false);
+      setShowUnmuteHint(false);
+    }
+  };
+
+  // Attempt to play with sound first, fallback to muted if browser blocks it
+  useEffect(() => {
+    if (!isVisible || !videoRef.current) return;
+
+    const vid = videoRef.current;
+    vid.volume = 1.0;
+    vid.muted = false;
+
+    vid.play()
+      .then(() => {
+        // Success! Browser allowed unmuted autoplay
+        setIsMuted(false);
+        setShowUnmuteHint(false);
+      })
+      .catch((err) => {
+        // Browser blocked unmuted autoplay (standard browser security restriction)
+        // Fallback to muted playback and prompt user to tap anywhere for sound
+        console.warn('Browser requires user interaction for audio. Starting muted:', err);
+        vid.muted = true;
+        setIsMuted(true);
+        setShowUnmuteHint(true);
+        vid.play().catch(() => {});
+      });
+  }, [isVisible]);
+
+  if (!isVisible) return null;
+
+  return (
+    <div 
+      onClick={handleScreenClick}
+      className={`fixed inset-0 z-[9999] bg-[#0B0D11] flex items-center justify-center transition-opacity duration-700 select-none cursor-pointer ${
+        isFading ? 'opacity-0 pointer-events-none' : 'opacity-100'
+      }`}
+    >
+      {/* Video Stream */}
+      <video
+        ref={videoRef}
+        src={videoSrc}
+        autoPlay
+        playsInline
+        preload="auto"
+        muted={isMuted}
+        onCanPlay={() => setIsLoading(false)}
+        onWaiting={() => setIsLoading(true)}
+        onPlaying={() => setIsLoading(false)}
+        onEnded={() => handleDismiss(true)}
+        onError={(e) => {
+          console.warn('Video stream error, revealing website:', e);
+          handleDismiss(false);
+        }}
+        className="w-full h-full object-cover"
+      />
+
+      {/* Atmospheric Cinematic Gradients */}
+      <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-[#0B0D11]/90 via-transparent to-black/70" />
+      <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_120px_rgba(0,0,0,0.85)]" />
+
+      {/* Loading Spinner while buffering */}
+      {isLoading && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
+          <div className="w-12 h-12 rounded-full border-2 border-cyan border-t-transparent animate-spin mb-3 shadow-[0_0_25px_rgba(70,199,222,0.6)]" />
+          <span className="text-[11px] font-mono uppercase tracking-[0.25em] text-cyan font-bold drop-shadow">
+            LOADING TEASER...
+          </span>
+        </div>
+      )}
+
+      {/* Floating Control Buttons */}
+      <div className="absolute top-6 right-6 z-20 flex items-center gap-3">
+        {/* Sound Toggle */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleSound();
+          }}
+          className={`px-4 py-2.5 rounded-full border text-xs font-mono font-bold flex items-center gap-2 backdrop-blur-md transition-all hover:scale-105 shadow-lg cursor-pointer ${
+            isMuted 
+              ? 'bg-[#E5385D]/20 border-[#E5385D]/60 text-white animate-pulse' 
+              : 'bg-black/60 hover:bg-black/85 border-white/20 text-cyan'
+          }`}
+          title={isMuted ? "Click to unmute sound" : "Click to mute"}
+        >
+          {isMuted ? (
+            <>
+              <VolumeX className="w-4 h-4 text-[#E5385D]" />
+              <span>UNMUTE AUDIO</span>
+            </>
+          ) : (
+            <>
+              <Volume2 className="w-4 h-4 text-cyan" />
+              <span>AUDIO ON</span>
+            </>
+          )}
+        </button>
+
+        {/* Skip Button */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDismiss(true);
+          }}
+          className="px-5 py-2.5 rounded-full bg-[#E5385D] hover:bg-[#F43F68] text-white text-xs font-heading font-black tracking-wider uppercase flex items-center gap-2 backdrop-blur-md transition-all hover:scale-105 shadow-[0_0_25px_rgba(229,56,93,0.45)] cursor-pointer"
+        >
+          <span>SKIP INTRO</span>
+          <SkipForward className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Center Unmute Callout (Shows if browser initially muted the video) */}
+      {showUnmuteHint && isMuted && !isLoading && (
+        <div 
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleSound();
+          }}
+          className="absolute inset-x-0 bottom-24 sm:bottom-28 z-20 flex justify-center px-4 pointer-events-auto"
+        >
+          <div className="px-6 py-3.5 rounded-2xl bg-[#121622]/90 hover:bg-[#1A2232] border border-cyan/50 hover:border-cyan text-white shadow-[0_0_30px_rgba(70,199,222,0.35)] backdrop-blur-xl flex items-center gap-3 transition-all hover:scale-105 cursor-pointer animate-bounce">
+            <div className="w-8 h-8 rounded-full bg-cyan/20 border border-cyan flex items-center justify-center text-cyan">
+              <Volume2 className="w-4 h-4" />
+            </div>
+            <div className="text-left">
+              <span className="block text-xs font-heading font-black uppercase text-cyan tracking-wider">
+                SOUND RESTRICTED BY BROWSER
+              </span>
+              <span className="block text-[11px] font-sans text-slate-300">
+                Click anywhere on screen to enable full audio 🔊
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Subtle Bottom Watermark */}
+      <div className="absolute bottom-6 left-6 z-20 flex items-center gap-3 pointer-events-none">
+        <span className="text-[11px] font-mono uppercase tracking-[0.22em] text-cyan font-bold bg-[#121622]/80 px-3.5 py-1.5 rounded-lg border border-cyan/30 backdrop-blur-md">
+          VEXORIS '26 · OFFICIAL TEASER
+        </span>
+      </div>
+    </div>
+  );
+}

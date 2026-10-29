@@ -93,7 +93,9 @@ export default function EventDetailPage() {
                       ? 'FORMAT: DUO (2 PARTICIPANTS)'
                       : event.format === 'solo'
                         ? 'FORMAT: SOLO (1 PARTICIPANT)'
-                        : `FORMAT: SQUAD (${event.minTeamSize}-${event.maxTeamSize} PLAYERS)`}
+                        : (event.id === 'bgmi' || event.id === 'free-fire')
+                          ? 'FORMAT: SQUAD (4 PLAYERS)'
+                          : `FORMAT: SQUAD (${event.minTeamSize}-${event.maxTeamSize} PLAYERS)`}
                   </span>
                 </div>
 
@@ -169,7 +171,15 @@ export default function EventDetailPage() {
 
             <span className="flex items-center gap-2 text-cyan font-bold">
               <Users className="w-3.5 h-3.5" />
-              <span>{event.id === 'debate' || event.id === 'quiz' ? 'DUO (2 PARTICIPANTS)' : event.format === 'solo' ? 'SOLO (1 PARTICIPANT)' : `SQUAD (${event.minTeamSize}-${event.maxTeamSize} PLAYERS)`}</span>
+              <span>
+                {event.id === 'debate' || event.id === 'quiz' 
+                  ? 'DUO (2 PARTICIPANTS)' 
+                  : event.format === 'solo' 
+                    ? 'SOLO (1 PARTICIPANT)' 
+                    : (event.id === 'bgmi' || event.id === 'free-fire')
+                      ? 'SQUAD (4 PLAYERS)'
+                      : `SQUAD (${event.minTeamSize}-${event.maxTeamSize} PLAYERS)`}
+              </span>
             </span>
 
             <span className="text-white/20 hidden sm:inline">|</span>

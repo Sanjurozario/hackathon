@@ -10,25 +10,12 @@ const STORAGE_KEYS = {
   ADMIN_SESSION: 'vexoris_admin_session_v1',
 };
 
-// Initialise local storage with empty data (no fake test entries)
+// Initialise local storage with empty data
 const initLocalStore = () => {
-  ['vexoris_events_v1', 'vexoris_events_v2', 'vexoris_events_v3', 'vexoris_events_v4'].forEach(k => {
-    try { localStorage.removeItem(k); } catch (e) {}
-  });
+  if (typeof localStorage === 'undefined') return;
+
   const cachedEvents = localStorage.getItem(STORAGE_KEYS.EVENTS);
-  let shouldReset = !cachedEvents || cachedEvents.indexOf('judges') !== -1;
-  if (cachedEvents && !shouldReset) {
-    try {
-      const parsed = JSON.parse(cachedEvents);
-      const debateEvt = parsed.find(e => e.id === 'debate');
-      if (!debateEvt || debateEvt.format !== 'group' || debateEvt.minTeamSize !== 2 || !debateEvt.rules?.[0]?.includes('consist of 2 students')) {
-        shouldReset = true;
-      }
-    } catch {
-      shouldReset = true;
-    }
-  }
-  if (shouldReset) {
+  if (!cachedEvents) {
     localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(OFFICIAL_EVENTS));
   }
   if (!localStorage.getItem(STORAGE_KEYS.REGISTRATIONS)) {
@@ -37,57 +24,94 @@ const initLocalStore = () => {
   if (!localStorage.getItem(STORAGE_KEYS.PARTICIPANTS)) {
     localStorage.setItem(STORAGE_KEYS.PARTICIPANTS, JSON.stringify([]));
   }
-
-  // Actively purge any legacy demo / fake test entries from browser storage
-  try {
-    // Clean storage of any demo artifacts if they exist
-    const rawRegs = localStorage.getItem(STORAGE_KEYS.REGISTRATIONS);
-    if (rawRegs) {
-      const regs = JSON.parse(rawRegs);
-      const cleaned = regs.filter(r => 
-        !r.id?.startsWith('reg-demo') && 
-        r.reference_code !== 'VX-7419' && 
-        r.reference_code !== 'VX-8204' && 
-        r.reference_code !== 'VX-9031' && 
-        r.reference_code !== 'VX-3382'
-      );
-      if (cleaned.length !== regs.length) {
-        localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(cleaned));
-      }
-    }
-
-    const rawParts = localStorage.getItem(STORAGE_KEYS.PARTICIPANTS);
-    if (rawParts) {
-      const parts = JSON.parse(rawParts);
-      const cleanedParts = parts.filter(p => 
-        !p.id?.startsWith('part-demo') && 
-        !p.registration_id?.startsWith('reg-demo') &&
-        p.full_name !== 'Aarav Sharma' &&
-        p.full_name !== 'Vikramaditya Roy' &&
-        p.full_name !== 'Rohit Kulkarni' &&
-        p.full_name !== 'Samarth Nair' &&
-        p.full_name !== 'Aditya Sen' &&
-        p.full_name !== 'Meera Nambiar' &&
-        p.full_name !== 'Kavya Pillai' &&
-        p.full_name !== 'Karan Mehra'
-      );
-      if (cleanedParts.length !== parts.length) {
-        localStorage.setItem(STORAGE_KEYS.PARTICIPANTS, JSON.stringify(cleanedParts));
-      }
-    }
-  } catch (e) {
-    // Fail-safe
-  }
 };
 
 // Exported function to clear all registrations and participants on demand
 export const clearAllRegistrations = async () => {
-  localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify([]));
-  localStorage.setItem(STORAGE_KEYS.PARTICIPANTS, JSON.stringify([]));
-  return { success: true, message: 'All registrations and participants cleared.' };
+  initLocalStore();
+  let cloudDeleted = false;
+  let cloudError = null;
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      // 1. Delete all participants first
+      await supabase
+        .from('participants')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
+
+      // 2. Delete all registrations
+      const { data, error } = await supabase
+        .from('registrations')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000')
+        .select();
+
+      if (error) {
+        cloudError = error.message;
+      } else if (data && data.length > 0) {
+        cloudDeleted = true;
+      }
+    } catch (err) {
+      cloudError = err.message;
+      console.warn('Supabase delete error:', err);
+    }
+  }
+
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.PARTICIPANTS, JSON.stringify([]));
+  }
+
+  return { success: true, cloudDeleted, cloudError };
 };
 
-// Generate high-contrast, professional reference code (e.g. VX-8492)
+// Exported function to delete a single registration
+export const deleteRegistration = async (registrationId) => {
+  initLocalStore();
+  let cloudDeleted = false;
+  let cloudError = null;
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      // 1. Delete participants
+      await supabase
+        .from('participants')
+        .delete()
+        .eq('registration_id', registrationId);
+
+      // 2. Delete registration
+      const { data, error } = await supabase
+        .from('registrations')
+        .delete()
+        .eq('id', registrationId)
+        .select();
+
+      if (error) {
+        cloudError = error.message;
+      } else if (data && data.length > 0) {
+        cloudDeleted = true;
+      }
+    } catch (err) {
+      cloudError = err.message;
+    }
+  }
+
+  // Also remove from local cache
+  if (typeof localStorage !== 'undefined') {
+    const rawRegs = localStorage.getItem(STORAGE_KEYS.REGISTRATIONS);
+    const regs = rawRegs ? JSON.parse(rawRegs) : [];
+    localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(regs.filter(r => r.id !== registrationId)));
+
+    const rawParts = localStorage.getItem(STORAGE_KEYS.PARTICIPANTS);
+    const parts = rawParts ? JSON.parse(rawParts) : [];
+    localStorage.setItem(STORAGE_KEYS.PARTICIPANTS, JSON.stringify(parts.filter(p => p.registration_id !== registrationId)));
+  }
+
+  return { success: true, cloudDeleted, cloudError };
+};
+
+// Generate reference code (e.g. VX-8492)
 export const generateReferenceCode = () => {
   const chars = '0123456789';
   let numPart = '';
@@ -103,34 +127,27 @@ export const generateReferenceCode = () => {
 
 export const getEvents = async () => {
   initLocalStore();
+
   if (isSupabaseConfigured && supabase) {
     try {
       const { data, error } = await supabase
         .from('events')
         .select('*')
         .order('name');
+
       if (!error && data && data.length > 0) {
-        // Map database fields to application shape, ensuring official rules & duo format for debate
         return data.map(item => {
           const official = OFFICIAL_EVENTS.find(e => e.id === item.id);
           const isDebate = item.id === 'debate';
-          
-          // Auto-patch Supabase database if debate is still solo or has old min size
-          if (isDebate && (item.format !== 'group' || item.min_team_size !== 2)) {
-            supabase.from('events').update({
-              format: 'group',
-              min_team_size: 2,
-              max_team_size: 2,
-              rules: official?.rules
-            }).eq('id', 'debate').then(() => {}).catch(() => {});
-          }
+          const isSpecialEsport = item.id === 'bgmi' || item.id === 'free-fire';
 
           return {
+            ...official,
             ...item,
-            format: isDebate ? 'group' : (item.format || official?.format || 'solo'),
-            minTeamSize: isDebate ? 2 : (item.min_team_size ?? official?.minTeamSize ?? 1),
-            maxTeamSize: isDebate ? 2 : (item.max_team_size ?? official?.maxTeamSize ?? 1),
-            rules: isDebate ? official?.rules : (item.rules && Array.isArray(item.rules) && item.rules.length > 0 ? item.rules : official?.rules),
+            format: isDebate ? 'group' : (isSpecialEsport ? 'group' : (item.format || official?.format || 'solo')),
+            minTeamSize: isDebate ? 2 : (isSpecialEsport ? 3 : (item.min_team_size ?? official?.minTeamSize ?? 1)),
+            maxTeamSize: isDebate ? 2 : (isSpecialEsport ? 4 : (item.max_team_size ?? official?.maxTeamSize ?? 1)),
+            rules: (isDebate || isSpecialEsport) ? official?.rules : (item.rules && Array.isArray(item.rules) && item.rules.length > 0 ? item.rules : official?.rules),
             registrationOpen: item.registration_open ?? official?.registrationOpen ?? true,
             shortDescription: item.short_description || official?.shortDescription,
             fullDescription: item.full_description || official?.fullDescription,
@@ -140,33 +157,18 @@ export const getEvents = async () => {
         });
       }
     } catch (err) {
-      console.warn('Falling back to local events cache:', err);
+      console.warn('Supabase getEvents error, falling back to local cache:', err);
     }
   }
 
-  // Local store: always ensure official rules & duo format for debate are merged
-  const raw = localStorage.getItem(STORAGE_KEYS.EVENTS);
-  if (!raw) return OFFICIAL_EVENTS;
-  try {
-    const parsed = JSON.parse(raw);
-    return OFFICIAL_EVENTS.map(official => {
-      const stored = parsed.find(p => p.id === official.id);
-      if (!stored) return official;
-      if (official.id === 'debate') {
-        return {
-          ...stored,
-          ...official,
-          rules: official.rules,
-          format: 'group',
-          minTeamSize: 2,
-          maxTeamSize: 2
-        };
-      }
-      return { ...official, ...stored };
-    });
-  } catch {
-    return OFFICIAL_EVENTS;
+  // Local storage fallback
+  if (typeof localStorage !== 'undefined') {
+    const raw = localStorage.getItem(STORAGE_KEYS.EVENTS);
+    if (raw) {
+      try { return JSON.parse(raw); } catch (e) {}
+    }
   }
+  return OFFICIAL_EVENTS;
 };
 
 export const getEventById = async (id) => {
@@ -183,12 +185,19 @@ export const getEventById = async (id) => {
       minTeamSize: 2,
       maxTeamSize: 2,
       rules: official?.rules
+    } : {}),
+    ...(lowerId === 'bgmi' || lowerId === 'free-fire' ? {
+      format: 'group',
+      minTeamSize: 3,
+      maxTeamSize: 4,
+      rules: official?.rules
     } : {})
   };
 };
 
 export const updateEvent = async (eventId, updates) => {
   initLocalStore();
+
   if (isSupabaseConfigured && supabase) {
     try {
       const dbUpdates = {};
@@ -202,29 +211,25 @@ export const updateEvent = async (eventId, updates) => {
       if ('date' in updates) dbUpdates.date = updates.date;
       if ('time' in updates) dbUpdates.time = updates.time;
       if ('venue' in updates) dbUpdates.venue = updates.venue;
-      if ('prizes' in updates) dbUpdates.prizes = updates.prizes;
 
-      const { data, error } = await supabase
+      await supabase
         .from('events')
         .update(dbUpdates)
-        .eq('id', eventId)
-        .select()
-        .single();
-
-      if (error) throw error;
+        .eq('id', eventId);
     } catch (err) {
       console.warn('Supabase event update failed, updating locally:', err);
     }
   }
 
-  // Always sync local storage
-  const raw = localStorage.getItem(STORAGE_KEYS.EVENTS);
-  const events = raw ? JSON.parse(raw) : [...OFFICIAL_EVENTS];
-  const idx = events.findIndex(e => e.id === eventId);
-  if (idx !== -1) {
-    events[idx] = { ...events[idx], ...updates };
-    localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(events));
-    return events[idx];
+  if (typeof localStorage !== 'undefined') {
+    const raw = localStorage.getItem(STORAGE_KEYS.EVENTS);
+    const events = raw ? JSON.parse(raw) : [...OFFICIAL_EVENTS];
+    const idx = events.findIndex(e => e.id === eventId);
+    if (idx !== -1) {
+      events[idx] = { ...events[idx], ...updates };
+      localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(events));
+      return events[idx];
+    }
   }
   return null;
 };
@@ -235,11 +240,15 @@ export const updateEvent = async (eventId, updates) => {
 
 export const checkParticipantUniqueness = async (eventId, participants) => {
   initLocalStore();
+
+  // 1. Cross-device check via Supabase
   if (isSupabaseConfigured && supabase) {
     try {
       for (const p of participants) {
-        const cleanName = p.fullName.trim();
-        const cleanDept = p.department.trim();
+        const cleanName = (p.fullName || p.full_name || '').trim();
+        const cleanDept = (p.department || '').trim();
+        if (!cleanName || !cleanDept) continue;
+
         const { data, error } = await supabase
           .from('participants')
           .select('full_name, department')
@@ -255,33 +264,34 @@ export const checkParticipantUniqueness = async (eventId, participants) => {
           };
         }
       }
-      return { isDuplicate: false };
     } catch (err) {
-      console.warn('Uniqueness check via Supabase failed, using local verifier:', err);
+      console.warn('Uniqueness check via Supabase error:', err);
     }
   }
 
-  // Local storage uniqueness verification
-  const rawParts = localStorage.getItem(STORAGE_KEYS.PARTICIPANTS);
-  const allParts = rawParts ? JSON.parse(rawParts) : [];
+  // 2. Local storage check fallback
+  if (typeof localStorage !== 'undefined') {
+    const rawParts = localStorage.getItem(STORAGE_KEYS.PARTICIPANTS);
+    const allParts = rawParts ? JSON.parse(rawParts) : [];
 
-  for (const p of participants) {
-    const cleanName = p.fullName.trim().toLowerCase();
-    const cleanDept = p.department.trim().toLowerCase();
+    for (const p of participants) {
+      const cleanName = (p.fullName || p.full_name || '').trim().toLowerCase();
+      const cleanDept = (p.department || '').trim().toLowerCase();
 
-    const existing = allParts.find(
-      existingPart =>
-        existingPart.event_id === eventId &&
-        existingPart.full_name.trim().toLowerCase() === cleanName &&
-        existingPart.department.trim().toLowerCase() === cleanDept
-    );
+      const existing = allParts.find(
+        ep =>
+          ep.event_id === eventId &&
+          (ep.full_name || '').trim().toLowerCase() === cleanName &&
+          (ep.department || '').trim().toLowerCase() === cleanDept
+      );
 
-    if (existing) {
-      return {
-        isDuplicate: true,
-        duplicateName: p.fullName.trim(),
-        duplicateDept: p.department.trim()
-      };
+      if (existing) {
+        return {
+          isDuplicate: true,
+          duplicateName: p.fullName || p.full_name,
+          duplicateDept: p.department
+        };
+      }
     }
   }
 
@@ -291,17 +301,12 @@ export const checkParticipantUniqueness = async (eventId, participants) => {
 export const createRegistration = async ({ eventId, teamName, format, participants }) => {
   initLocalStore();
 
-  // 1. Fetch current event settings to enforce rules
+  // 1. Validate Event
   const event = await getEventById(eventId);
-  if (!event) {
-    throw new Error('Selected event does not exist.');
-  }
+  if (!event) throw new Error('Selected event does not exist.');
+  if (!event.registrationOpen) throw new Error(`Registrations for ${event.name} are currently closed.`);
 
-  if (!event.registrationOpen) {
-    throw new Error(`Registrations for ${event.name} are currently closed.`);
-  }
-
-  // 2. Enforce team size limits
+  // 2. Validate Team Sizes
   let cleanTeamName = teamName?.trim() || null;
   if (format === 'solo') {
     if (participants.length !== 1) {
@@ -310,34 +315,31 @@ export const createRegistration = async ({ eventId, teamName, format, participan
     cleanTeamName = null;
   } else if (format === 'group') {
     if (!cleanTeamName) {
-      const names = participants.map(p => p.fullName?.trim()).filter(Boolean);
-      cleanTeamName = names.length > 0 
-        ? names.join(' & ') 
-        : `${event.name} ${event.id === 'debate' || event.id === 'quiz' ? 'Duo' : 'Team'}`;
+      const names = participants.map(p => (p.fullName || p.full_name)?.trim()).filter(Boolean);
+      cleanTeamName = names.length > 0 ? names.join(' & ') : `${event.name} Team`;
     }
-    if (participants.length < (event.minTeamSize || 2)) {
-      throw new Error(`Minimum team size for ${event.name} is ${event.minTeamSize || 2}.`);
+    const minSize = event.minTeamSize || 2;
+    const maxSize = event.maxTeamSize || 4;
+    if (participants.length < minSize) {
+      throw new Error(`Minimum team size for ${event.name} is ${minSize}.`);
     }
-    if (participants.length > (event.maxTeamSize || 4)) {
-      throw new Error(`Maximum team size for ${event.name} is ${event.maxTeamSize || 4}.`);
+    if (participants.length > maxSize) {
+      throw new Error(`Maximum team size for ${event.name} is ${maxSize}.`);
     }
   }
 
-  // 3. Validate every participant record
+  // 3. Validate Participant Records
   for (let i = 0; i < participants.length; i++) {
     const p = participants[i];
-    if (!p.fullName || !p.fullName.trim()) {
-      throw new Error(`Participant #${i + 1} full name is required.`);
-    }
-    if (!p.classCourse || !p.classCourse.trim()) {
-      throw new Error(`Participant #${i + 1} class/course is required.`);
-    }
-    if (!p.department || !p.department.trim()) {
-      throw new Error(`Participant #${i + 1} department is required.`);
-    }
+    const name = (p.fullName || p.full_name)?.trim();
+    const cls = (p.classCourse || p.class_course)?.trim();
+    const dept = p.department?.trim();
+    if (!name) throw new Error(`Participant #${i + 1} full name is required.`);
+    if (!cls) throw new Error(`Participant #${i + 1} class/course is required.`);
+    if (!dept) throw new Error(`Participant #${i + 1} department is required.`);
   }
 
-  // 4. Duplicate prevention rule
+  // 4. Duplicate Prevention Rule
   const uniquenessCheck = await checkParticipantUniqueness(eventId, participants);
   if (uniquenessCheck.isDuplicate) {
     throw new Error(
@@ -347,11 +349,63 @@ export const createRegistration = async ({ eventId, teamName, format, participan
 
   // 5. Generate distinct reference code
   const referenceCode = generateReferenceCode();
-  const registrationId = `reg-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   const now = new Date().toISOString();
 
-  const newReg = {
-    id: registrationId,
+  // 6. Save directly to Supabase Live Database
+  if (isSupabaseConfigured && supabase) {
+    const { data: regData, error: regError } = await supabase
+      .from('registrations')
+      .insert([{
+        reference_code: referenceCode,
+        event_id: eventId,
+        format,
+        team_name: cleanTeamName,
+        participant_count: participants.length,
+        status: 'confirmed'
+      }])
+      .select()
+      .single();
+
+    if (regError) {
+      console.error('Supabase registration insert error:', regError);
+      throw new Error(`Database error saving registration: ${regError.message}`);
+    }
+
+    const participantPayload = participants.map(p => ({
+      registration_id: regData.id,
+      event_id: eventId,
+      full_name: (p.fullName || p.full_name).trim(),
+      class_course: (p.classCourse || p.class_course).trim(),
+      department: p.department.trim()
+    }));
+
+    const { data: partData, error: partError } = await supabase
+      .from('participants')
+      .insert(participantPayload)
+      .select();
+
+    if (partError) {
+      console.error('Supabase participant insert error:', partError);
+      // Rollback registration
+      await supabase.from('registrations').delete().eq('id', regData.id);
+      throw new Error(`Database error saving participants: ${partError.message}`);
+    }
+
+    // Save copy in local cache for offline instant display
+    saveToLocalStore(regData, partData || participantPayload);
+
+    return {
+      registration: regData,
+      participants: partData || participantPayload,
+      referenceCode: regData.reference_code,
+      event
+    };
+  }
+
+  // 7. Fallback to Local Storage ONLY if Supabase is completely unconfigured
+  const localRegId = `reg-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  const localReg = {
+    id: localRegId,
     reference_code: referenceCode,
     event_id: eventId,
     format,
@@ -361,87 +415,112 @@ export const createRegistration = async ({ eventId, teamName, format, participan
     created_at: now
   };
 
-  const newParticipants = participants.map((p, idx) => ({
+  const localParticipants = participants.map((p, idx) => ({
     id: `part-${Date.now()}-${idx}-${Math.floor(Math.random() * 1000)}`,
-    registration_id: registrationId,
+    registration_id: localRegId,
     event_id: eventId,
-    full_name: p.fullName.trim(),
-    class_course: p.classCourse.trim(),
+    full_name: (p.fullName || p.full_name).trim(),
+    class_course: (p.classCourse || p.class_course).trim(),
     department: p.department.trim(),
     created_at: now
   }));
 
-  // 6. Try Supabase transaction/inserts if configured
-  if (isSupabaseConfigured && supabase) {
-    try {
-      const { data: regData, error: regError } = await supabase
-        .from('registrations')
-        .insert([{
-          reference_code: referenceCode,
-          event_id: eventId,
-          format,
-          team_name: cleanTeamName,
-          participant_count: participants.length,
-          status: 'confirmed'
-        }])
-        .select()
-        .single();
-
-      if (regError) throw regError;
-
-      const participantPayload = participants.map(p => ({
-        registration_id: regData.id,
-        event_id: eventId,
-        full_name: p.fullName.trim(),
-        class_course: p.classCourse.trim(),
-        department: p.department.trim()
-      }));
-
-      const { error: partError } = await supabase
-        .from('participants')
-        .insert(participantPayload);
-
-      if (partError) {
-        // Rollback registration if participant insert fails
-        await supabase.from('registrations').delete().eq('id', regData.id);
-        throw partError;
-      }
-
-      // Sync local storage as well for seamless instant cache
-      saveToLocalStore(regData, participantPayload);
-
-      return {
-        registration: regData,
-        participants: participantPayload,
-        referenceCode: regData.reference_code,
-        event
-      };
-    } catch (err) {
-      console.warn('Supabase write failed or network offline, persisting to local store:', err);
-    }
-  }
-
-  // Local storage atomic save
-  saveToLocalStore(newReg, newParticipants);
+  saveToLocalStore(localReg, localParticipants);
 
   return {
-    registration: newReg,
-    participants: newParticipants,
+    registration: localReg,
+    participants: localParticipants,
     referenceCode,
     event
   };
 };
 
 const saveToLocalStore = (reg, parts) => {
+  if (typeof localStorage === 'undefined') return;
+
   const rawRegs = localStorage.getItem(STORAGE_KEYS.REGISTRATIONS);
   const regs = rawRegs ? JSON.parse(rawRegs) : [];
-  regs.unshift(reg);
+  const existingIdx = regs.findIndex(r => r.reference_code === reg.reference_code);
+  if (existingIdx !== -1) {
+    regs[existingIdx] = reg;
+  } else {
+    regs.unshift(reg);
+  }
   localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(regs));
 
   const rawParts = localStorage.getItem(STORAGE_KEYS.PARTICIPANTS);
   const allParts = rawParts ? JSON.parse(rawParts) : [];
-  allParts.push(...parts);
+  const partIds = new Set(allParts.map(p => p.id));
+  (parts || []).forEach(p => {
+    if (!partIds.has(p.id)) {
+      allParts.push(p);
+    }
+  });
   localStorage.setItem(STORAGE_KEYS.PARTICIPANTS, JSON.stringify(allParts));
+};
+
+// Auto-sync function to upload any offline local registrations to Supabase
+export const syncLocalRegistrationsToCloud = async () => {
+  if (!isSupabaseConfigured || !supabase || typeof localStorage === 'undefined') {
+    return { success: false, synced: 0, reason: 'Supabase is not configured' };
+  }
+
+  const rawRegs = localStorage.getItem(STORAGE_KEYS.REGISTRATIONS);
+  const rawParts = localStorage.getItem(STORAGE_KEYS.PARTICIPANTS);
+  if (!rawRegs) return { success: true, synced: 0 };
+
+  try {
+    const regs = JSON.parse(rawRegs);
+    const parts = rawParts ? JSON.parse(rawParts) : [];
+    if (!Array.isArray(regs) || regs.length === 0) return { success: true, synced: 0 };
+
+    // Fetch existing reference codes from Supabase
+    const { data: cloudData, error: fetchErr } = await supabase
+      .from('registrations')
+      .select('reference_code');
+
+    if (fetchErr) throw fetchErr;
+
+    const cloudRefs = new Set((cloudData || []).map(r => r.reference_code));
+    const unsynced = regs.filter(r => !cloudRefs.has(r.reference_code));
+
+    let count = 0;
+    for (const r of unsynced) {
+      const { data: insertedReg, error: regErr } = await supabase
+        .from('registrations')
+        .insert([{
+          reference_code: r.reference_code,
+          event_id: r.event_id,
+          format: r.format || 'solo',
+          team_name: r.team_name,
+          participant_count: r.participant_count || 1,
+          status: r.status || 'confirmed'
+        }])
+        .select()
+        .single();
+
+      if (!regErr && insertedReg) {
+        const matchingParts = parts.filter(p => p.registration_id === r.id);
+        if (matchingParts.length > 0) {
+          await supabase.from('participants').insert(
+            matchingParts.map(p => ({
+              registration_id: insertedReg.id,
+              event_id: r.event_id,
+              full_name: (p.full_name || p.fullName).trim(),
+              class_course: (p.class_course || p.classCourse).trim(),
+              department: p.department.trim()
+            }))
+          );
+        }
+        count++;
+      }
+    }
+
+    return { success: true, synced: count };
+  } catch (err) {
+    console.warn('Sync to Supabase cloud error:', err);
+    return { success: false, synced: 0, error: err.message };
+  }
 };
 
 // ==========================================
@@ -453,6 +532,7 @@ export const getRegistrationsWithParticipants = async ({ eventId = 'all', status
   let registrations = [];
   let participants = [];
 
+  // 1. Fetch live registrations from Supabase
   if (isSupabaseConfigured && supabase) {
     try {
       let query = supabase.from('registrations').select('*').order('created_at', { ascending: false });
@@ -477,27 +557,43 @@ export const getRegistrationsWithParticipants = async ({ eventId = 'all', status
         }
       }
     } catch (err) {
-      console.warn('Supabase fetch failed, falling back to local records:', err);
+      console.warn('Supabase fetch failed, checking local records:', err);
     }
   }
 
-  // Fallback to local storage if Supabase returned empty or was not configured
-  if (registrations.length === 0) {
+  // 2. Merge local records if offline or if any local records haven't reached cloud
+  if (typeof localStorage !== 'undefined') {
     const rawRegs = localStorage.getItem(STORAGE_KEYS.REGISTRATIONS);
-    registrations = rawRegs ? JSON.parse(rawRegs) : [];
-
+    const localRegs = rawRegs ? JSON.parse(rawRegs) : [];
     const rawParts = localStorage.getItem(STORAGE_KEYS.PARTICIPANTS);
-    participants = rawParts ? JSON.parse(rawParts) : [];
+    const localParts = rawParts ? JSON.parse(rawParts) : [];
 
-    if (eventId !== 'all') {
-      registrations = registrations.filter(r => r.event_id === eventId);
-    }
-    if (status !== 'all') {
-      registrations = registrations.filter(r => r.status === status);
+    if (registrations.length === 0) {
+      registrations = localRegs;
+      participants = localParts;
+      if (eventId !== 'all') {
+        registrations = registrations.filter(r => r.event_id === eventId);
+      }
+      if (status !== 'all') {
+        registrations = registrations.filter(r => r.status === status);
+      }
+    } else if (localRegs.length > 0) {
+      const cloudRefs = new Set(registrations.map(r => r.reference_code));
+      let missingLocal = localRegs.filter(r => !cloudRefs.has(r.reference_code));
+      if (eventId !== 'all') {
+        missingLocal = missingLocal.filter(r => r.event_id === eventId);
+      }
+      if (status !== 'all') {
+        missingLocal = missingLocal.filter(r => r.status === status);
+      }
+      if (missingLocal.length > 0) {
+        registrations = [...registrations, ...missingLocal];
+        participants = [...participants, ...localParts];
+      }
     }
   }
 
-  // Attach participant records to each registration
+  // 3. Attach participant records to each registration
   let combined = registrations.map(r => {
     const memberRecords = participants.filter(p => p.registration_id === r.id);
     return {
@@ -506,16 +602,16 @@ export const getRegistrationsWithParticipants = async ({ eventId = 'all', status
     };
   });
 
-  // Search filtering across participant name, class, department, or registration reference
+  // 4. Search filtering
   if (search && search.trim()) {
     const term = search.trim().toLowerCase();
     combined = combined.filter(entry => {
-      const matchRef = entry.reference_code.toLowerCase().includes(term);
+      const matchRef = entry.reference_code?.toLowerCase().includes(term);
       const matchTeam = entry.team_name ? entry.team_name.toLowerCase().includes(term) : false;
-      const matchMember = entry.participants.some(p =>
-        p.full_name.toLowerCase().includes(term) ||
-        p.class_course.toLowerCase().includes(term) ||
-        p.department.toLowerCase().includes(term)
+      const matchMember = (entry.participants || []).some(p =>
+        (p.full_name || p.fullName)?.toLowerCase().includes(term) ||
+        (p.class_course || p.classCourse)?.toLowerCase().includes(term) ||
+        p.department?.toLowerCase().includes(term)
       );
       return matchRef || matchTeam || matchMember;
     });
@@ -528,16 +624,17 @@ export const getDashboardMetrics = async () => {
   const events = await getEvents();
   const allRegistrations = await getRegistrationsWithParticipants({ eventId: 'all', status: 'all' });
 
-  // Compute metrics from actual data
   const totalRegistrations = allRegistrations.length;
-
   let totalParticipantsCount = 0;
   const uniqueStudentMap = new Set();
 
   allRegistrations.forEach(r => {
-    totalParticipantsCount += (r.participants?.length || r.participant_count || 1);
-    r.participants?.forEach(p => {
-      const key = `${p.full_name.trim().toLowerCase()}_${p.department.trim().toLowerCase()}`;
+    const count = r.participants?.length || r.participant_count || 1;
+    totalParticipantsCount += count;
+    (r.participants || []).forEach(p => {
+      const name = p.full_name || p.fullName || '';
+      const dept = p.department || '';
+      const key = `${name.trim().toLowerCase()}_${dept.trim().toLowerCase()}`;
       uniqueStudentMap.add(key);
     });
   });
@@ -578,37 +675,50 @@ export const getDashboardMetrics = async () => {
 
 export const adminLogin = async (email, password) => {
   if (isSupabaseConfigured && supabase) {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-    if (!error && data?.user) {
-      localStorage.setItem(STORAGE_KEYS.ADMIN_SESSION, JSON.stringify({
-        email: data.user.email,
-        id: data.user.id,
-        role: 'authenticated_admin',
-        token: data.session?.access_token,
-        mode: 'supabase'
-      }));
-      return { success: true, user: data.user, mode: 'supabase' };
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      if (!error && data?.user) {
+        localStorage.setItem(STORAGE_KEYS.ADMIN_SESSION, JSON.stringify({
+          email: data.user.email,
+          id: data.user.id,
+          role: 'authenticated_admin',
+          token: data.session?.access_token,
+          mode: 'supabase'
+        }));
+        return { success: true, user: data.user, mode: 'supabase' };
+      }
+    } catch (e) {
+      // Proceed to fallback
     }
   }
 
   // Resilient Admin credentials
-  const cleanEmail = email.trim().toLowerCase();
-  if (
-    (cleanEmail === 'pegasus' || cleanEmail === 'pegasus@hackathon.local' || cleanEmail === 'admin@hackathon.local' || cleanEmail === 'pegasus@vexoris.local' || cleanEmail === 'admin@vexoris.local' || cleanEmail === 'admin') &&
-    (password === 'hackathon26' || password === 'hackathon' || password === 'vexoris26' || password === 'vexoris2025' || password === 'admin123')
-  ) {
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const validUsernames = [
+    'pegasus',
+    'pegasus@hackathon.local',
+    'admin@hackathon.local',
+    'pegasus@vexoris.local',
+    'admin@vexoris.local',
+    'admin'
+  ];
+  const validPasswords = ['hackathon26', 'hackathon', 'vexoris26', 'vexoris2025', 'admin123'];
+
+  if (validUsernames.includes(cleanEmail) && validPasswords.includes(password)) {
     const sessionUser = {
       email: cleanEmail === 'pegasus' ? 'admin@hackathon.local' : cleanEmail,
       username: 'pegasus',
       id: 'local-admin-root',
       role: 'authorized_administrator',
-      mode: 'local'
+      mode: isSupabaseConfigured ? 'supabase' : 'local'
     };
-    localStorage.setItem(STORAGE_KEYS.ADMIN_SESSION, JSON.stringify(sessionUser));
-    return { success: true, user: sessionUser, mode: 'local' };
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.ADMIN_SESSION, JSON.stringify(sessionUser));
+    }
+    return { success: true, user: sessionUser, mode: sessionUser.mode };
   }
 
   throw new Error('Invalid administrator credentials.');
@@ -622,10 +732,13 @@ export const adminLogout = async () => {
       console.warn(e);
     }
   }
-  localStorage.removeItem(STORAGE_KEYS.ADMIN_SESSION);
+  if (typeof localStorage !== 'undefined') {
+    localStorage.removeItem(STORAGE_KEYS.ADMIN_SESSION);
+  }
 };
 
 export const getAdminSession = () => {
+  if (typeof localStorage === 'undefined') return null;
   const raw = localStorage.getItem(STORAGE_KEYS.ADMIN_SESSION);
   if (!raw) return null;
   try {

@@ -5,6 +5,7 @@ import {
   AlertCircle, 
   Printer, 
   Check,
+  ShieldCheck,
   Calendar,
   MapPin,
   Clock
@@ -13,6 +14,7 @@ import { createRegistration } from '../lib/db';
 
 export default function RegistrationForm({ event, onComplete }) {
   const isSolo = event.format === 'solo';
+  const isSpecialEsport = event.id === 'bgmi' || event.id === 'free-fire';
   const minTeam = event.minTeamSize || (isSolo ? 1 : 2);
   const maxTeam = event.maxTeamSize || (isSolo ? 1 : 4);
 
@@ -22,13 +24,13 @@ export default function RegistrationForm({ event, onComplete }) {
     countOptions.push(c);
   }
 
-  // Form State
+  // Form State: For BGMI & Free Fire default to 4 members so it presents as a 4-player squad
+  const defaultCount = isSolo ? 1 : (isSpecialEsport ? 4 : minTeam);
   const [teamName, setTeamName] = useState('');
-  const [participantCount, setParticipantCount] = useState(isSolo ? 1 : minTeam);
+  const [participantCount, setParticipantCount] = useState(defaultCount);
   const [participants, setParticipants] = useState(() => {
     const initial = [];
-    const count = isSolo ? 1 : minTeam;
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < defaultCount; i++) {
       initial.push({ fullName: '', classCourse: '', department: '' });
     }
     return initial;
@@ -71,9 +73,22 @@ export default function RegistrationForm({ event, onComplete }) {
     e.preventDefault();
     setErrorMessage('');
 
+    let activeParticipants = [...participants];
+
+    // For BGMI & Free Fire: If participant 4 is completely blank, accept as a 3-player squad
+    if (isSpecialEsport && activeParticipants.length === 4) {
+      const p4 = activeParticipants[3];
+      const isP4Empty = !(p4.fullName || '').trim() && !(p4.classCourse || '').trim() && !(p4.department || '').trim();
+      if (isP4Empty) {
+        activeParticipants = activeParticipants.slice(0, 3);
+        setParticipants(activeParticipants);
+        setParticipantCount(3);
+      }
+    }
+
     // Check participants
-    for (let i = 0; i < participants.length; i++) {
-      const p = participants[i];
+    for (let i = 0; i < activeParticipants.length; i++) {
+      const p = activeParticipants[i];
       if (!p.fullName.trim()) {
         setErrorMessage(`Please enter the full name for Participant ${i + 1}.`);
         return;
@@ -258,7 +273,13 @@ export default function RegistrationForm({ event, onComplete }) {
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-[#1E2638]">
           <button
             type="button"
-            onClick={() => setStep('fill')}
+            onClick={() => {
+              if (isSpecialEsport && participants.length === 3) {
+                setParticipants([...participants, { fullName: '', classCourse: '', department: '' }]);
+                setParticipantCount(4);
+              }
+              setStep('fill');
+            }}
             className="w-full sm:w-auto px-6 py-3 bg-[#182030] hover:bg-[#222C42] text-slate-300 hover:text-white text-xs font-heading font-bold uppercase tracking-wider rounded-full border border-[#2B364C] transition-colors"
           >
             ← Back & Edit
@@ -379,45 +400,51 @@ export default function RegistrationForm({ event, onComplete }) {
                 /* GROUP EVENT FIELDS */
                 <div className="space-y-6">
                   
-                  {minTeam === maxTeam && (
+                  {(minTeam === maxTeam || isSpecialEsport) && (
                     <div className="p-3 bg-[#0D1017] border border-[#263146] rounded-xl flex items-center justify-between">
                       <span className="text-xs font-mono font-bold text-slate-300 uppercase tracking-wider">Format</span>
                       <span className="text-xs font-mono font-bold text-cyan uppercase tracking-wider px-2 py-0.5 rounded bg-[#161D2B] border border-cyan/40">
-                        {event.id === 'debate' || event.id === 'quiz' ? 'Duo Event (2 Participants)' : `Squad Event (${minTeam} Players)`}
+                        {event.id === 'debate' || event.id === 'quiz' 
+                          ? 'Duo Event (2 Participants)' 
+                          : isSpecialEsport 
+                            ? 'Squad Event (4 Players)' 
+                            : `Squad Event (${minTeam} Players)`}
                       </span>
                     </div>
                   )}
 
-                  {/* Number of Participants Pills */}
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-xs font-mono font-bold text-slate-200 uppercase tracking-wider">
-                        Number of Team Members *
-                      </label>
-                      <span className="text-xs font-mono text-cyan">
-                        {event.id === 'bgmi' || event.id === 'free-fire' ? 'Squad of 4 Players' : (event.id === 'quiz' || event.id === 'debate') ? 'Duo of 2 Members' : `Range: ${minTeam} to ${maxTeam}`}
-                      </span>
+                  {/* Number of Participants Pills for range events */}
+                  {!isSpecialEsport && minTeam !== maxTeam && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-xs font-mono font-bold text-slate-200 uppercase tracking-wider">
+                          Number of Team Members *
+                        </label>
+                        <span className="text-xs font-mono text-cyan">
+                          Range: {minTeam} to {maxTeam}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2.5">
+                        {countOptions.map(cnt => {
+                          const isSelected = participantCount === cnt;
+                          return (
+                            <button
+                              key={cnt}
+                              type="button"
+                              onClick={() => handleCountChange(cnt)}
+                              className={`w-12 h-12 rounded-xl text-sm font-heading font-black transition-all ${
+                                isSelected
+                                  ? 'bg-cyan text-[#0B0D11] shadow-lg shadow-cyan/25 scale-105'
+                                  : 'bg-[#182030] text-slate-300 hover:text-white border border-[#263248]'
+                              }`}
+                            >
+                              {cnt}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2.5">
-                      {countOptions.map(cnt => {
-                        const isSelected = participantCount === cnt;
-                        return (
-                          <button
-                            key={cnt}
-                            type="button"
-                            onClick={() => handleCountChange(cnt)}
-                            className={`w-12 h-12 rounded-xl text-sm font-heading font-black transition-all ${
-                              isSelected
-                                ? 'bg-cyan text-[#0B0D11] shadow-lg shadow-cyan/25 scale-105'
-                                : 'bg-[#182030] text-slate-300 hover:text-white border border-[#263248]'
-                            }`}
-                          >
-                            {cnt}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
+                  )}
 
                   {/* Participant Details Cards */}
                   <div className="space-y-4 pt-2">
@@ -425,53 +452,61 @@ export default function RegistrationForm({ event, onComplete }) {
                       Team Member Credentials
                     </span>
 
-                    {participants.map((p, idx) => (
-                      <div key={idx} className="p-5 bg-[#0D1017] border border-[#1E2536] rounded-2xl space-y-3.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-mono font-bold text-cyan uppercase tracking-wider">
-                            {idx === 0 ? 'Participant 1 (Team Leader)' : `Participant ${idx + 1}`}
-                          </span>
+                    {participants.map((p, idx) => {
+                      const isP4 = isSpecialEsport && idx === 3;
+
+                      return (
+                        <div key={idx} className="p-5 bg-[#0D1017] border border-[#1E2536] rounded-2xl space-y-3.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-mono font-bold text-cyan uppercase tracking-wider">
+                              {idx === 0 
+                                ? 'Participant 1 (Team Leader)' 
+                                : isP4 
+                                  ? 'Participant 4' 
+                                  : `Participant ${idx + 1}`}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                            {/* Full Name */}
+                            <div>
+                              <input
+                                type="text"
+                                required={!isP4}
+                                value={p.fullName}
+                                onChange={(e) => handleParticipantChange(idx, 'fullName', e.target.value)}
+                                placeholder={isP4 ? "Full Name" : "Full Name *"}
+                                className="w-full px-3.5 py-3 bg-[#161D2B] border border-[#28344A] rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan"
+                              />
+                            </div>
+
+                            {/* Class */}
+                            <div>
+                              <input
+                                type="text"
+                                required={!isP4}
+                                value={p.classCourse}
+                                onChange={(e) => handleParticipantChange(idx, 'classCourse', e.target.value)}
+                                placeholder={isP4 ? "Class" : "Class (e.g. FY BCA, 3rd Year) *"}
+                                className="w-full px-3.5 py-3 bg-[#161D2B] border border-[#28344A] rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan"
+                              />
+                            </div>
+
+                            {/* Department */}
+                            <div>
+                              <input
+                                type="text"
+                                required={!isP4}
+                                value={p.department}
+                                onChange={(e) => handleParticipantChange(idx, 'department', e.target.value)}
+                                placeholder={isP4 ? "Department" : "Department *"}
+                                className="w-full px-3.5 py-3 bg-[#161D2B] border border-[#28344A] rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan"
+                              />
+                            </div>
+                          </div>
                         </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                          {/* Full Name */}
-                          <div>
-                            <input
-                              type="text"
-                              required
-                              value={p.fullName}
-                              onChange={(e) => handleParticipantChange(idx, 'fullName', e.target.value)}
-                              placeholder="Full Name *"
-                              className="w-full px-3.5 py-3 bg-[#161D2B] border border-[#28344A] rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan"
-                            />
-                          </div>
-
-                          {/* Class */}
-                          <div>
-                            <input
-                              type="text"
-                              required
-                              value={p.classCourse}
-                              onChange={(e) => handleParticipantChange(idx, 'classCourse', e.target.value)}
-                              placeholder="Class (e.g. FY BCA, 3rd Year) *"
-                              className="w-full px-3.5 py-3 bg-[#161D2B] border border-[#28344A] rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan"
-                            />
-                          </div>
-
-                          {/* Department */}
-                          <div>
-                            <input
-                              type="text"
-                              required
-                              value={p.department}
-                              onChange={(e) => handleParticipantChange(idx, 'department', e.target.value)}
-                              placeholder="Department *"
-                              className="w-full px-3.5 py-3 bg-[#161D2B] border border-[#28344A] rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                 </div>
