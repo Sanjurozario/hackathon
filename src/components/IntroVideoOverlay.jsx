@@ -4,10 +4,13 @@ import { Volume2, VolumeX, SkipForward } from 'lucide-react';
 /**
  * IntroVideoOverlay
  * Plays a full-screen teaser video with AUDIO when user opens the website.
+ * - Responsive 16:9 widescreen presentation: Uses object-contain so mobile screens
+ *   never expand, crop, or zoom-in the video.
  * - Attempts to play with full audio immediately.
  * - If browser autoplay policy blocks unmuted audio, it starts video smoothly
  *   and provides a 1-tap screen unmute (clicking anywhere turns sound ON).
  * - FastStart streamable MP4 support with loading spinner while buffering.
+ * - Mobile-friendly controls positioned within safe touch zones.
  * - Prominent Skip button available anytime.
  * - Automatically fades out to website when video ends.
  */
@@ -99,11 +102,11 @@ export default function IntroVideoOverlay({
   return (
     <div 
       onClick={handleScreenClick}
-      className={`fixed inset-0 z-[9999] bg-[#0B0D11] flex items-center justify-center transition-opacity duration-700 select-none cursor-pointer ${
+      className={`fixed inset-0 z-[9999] bg-[#07090D] flex items-center justify-center transition-opacity duration-700 select-none cursor-pointer overflow-hidden ${
         isFading ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
     >
-      {/* Video Stream */}
+      {/* Video Stream: object-contain preserves natural 16:9 widescreen ratio without cropping/expansion on mobile */}
       <video
         ref={videoRef}
         src={videoSrc}
@@ -119,25 +122,25 @@ export default function IntroVideoOverlay({
           console.warn('Video stream error, revealing website:', e);
           handleDismiss(false);
         }}
-        className="w-full h-full object-cover"
+        className="w-full h-full max-h-[100dvh] object-contain select-none"
       />
 
       {/* Atmospheric Cinematic Gradients */}
-      <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-[#0B0D11]/90 via-transparent to-black/70" />
+      <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-[#07090D] via-transparent to-black/75" />
       <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_120px_rgba(0,0,0,0.85)]" />
 
       {/* Loading Spinner while buffering */}
       {isLoading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
-          <div className="w-12 h-12 rounded-full border-2 border-cyan border-t-transparent animate-spin mb-3 shadow-[0_0_25px_rgba(70,199,222,0.6)]" />
-          <span className="text-[11px] font-mono uppercase tracking-[0.25em] text-cyan font-bold drop-shadow">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-cyan border-t-transparent animate-spin mb-3 shadow-[0_0_25px_rgba(70,199,222,0.6)]" />
+          <span className="text-[10px] sm:text-[11px] font-mono uppercase tracking-[0.25em] text-cyan font-bold drop-shadow">
             LOADING TEASER...
           </span>
         </div>
       )}
 
-      {/* Floating Control Buttons */}
-      <div className="absolute top-6 right-6 z-20 flex items-center gap-3">
+      {/* Floating Control Buttons: Positioned safely for mobile screens */}
+      <div className="absolute top-4 sm:top-6 right-4 sm:right-6 z-30 flex items-center gap-2 sm:gap-3 pointer-events-auto">
         {/* Sound Toggle */}
         <button
           type="button"
@@ -145,21 +148,21 @@ export default function IntroVideoOverlay({
             e.stopPropagation();
             toggleSound();
           }}
-          className={`px-4 py-2.5 rounded-full border text-xs font-mono font-bold flex items-center gap-2 backdrop-blur-md transition-all hover:scale-105 shadow-lg cursor-pointer ${
+          className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-full border text-[11px] sm:text-xs font-mono font-bold flex items-center gap-1.5 sm:gap-2 backdrop-blur-md transition-all shadow-lg cursor-pointer ${
             isMuted 
-              ? 'bg-[#E5385D]/20 border-[#E5385D]/60 text-white animate-pulse' 
-              : 'bg-black/60 hover:bg-black/85 border-white/20 text-cyan'
+              ? 'bg-[#E5385D]/25 border-[#E5385D]/70 text-white animate-pulse' 
+              : 'bg-black/70 hover:bg-black/90 border-white/20 text-cyan'
           }`}
           title={isMuted ? "Click to unmute sound" : "Click to mute"}
         >
           {isMuted ? (
             <>
-              <VolumeX className="w-4 h-4 text-[#E5385D]" />
-              <span>UNMUTE AUDIO</span>
+              <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#E5385D]" />
+              <span>UNMUTE</span>
             </>
           ) : (
             <>
-              <Volume2 className="w-4 h-4 text-cyan" />
+              <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan" />
               <span>AUDIO ON</span>
             </>
           )}
@@ -172,10 +175,10 @@ export default function IntroVideoOverlay({
             e.stopPropagation();
             handleDismiss(true);
           }}
-          className="px-5 py-2.5 rounded-full bg-[#E5385D] hover:bg-[#F43F68] text-white text-xs font-heading font-black tracking-wider uppercase flex items-center gap-2 backdrop-blur-md transition-all hover:scale-105 shadow-[0_0_25px_rgba(229,56,93,0.45)] cursor-pointer"
+          className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-[#E5385D] hover:bg-[#F43F68] text-white text-[11px] sm:text-xs font-heading font-black tracking-wider uppercase flex items-center gap-1.5 sm:gap-2 backdrop-blur-md transition-all shadow-[0_0_25px_rgba(229,56,93,0.45)] cursor-pointer"
         >
           <span>SKIP INTRO</span>
-          <SkipForward className="w-4 h-4" />
+          <SkipForward className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
       </div>
 
@@ -186,18 +189,18 @@ export default function IntroVideoOverlay({
             e.stopPropagation();
             toggleSound();
           }}
-          className="absolute inset-x-0 bottom-24 sm:bottom-28 z-20 flex justify-center px-4 pointer-events-auto"
+          className="absolute inset-x-0 bottom-16 sm:bottom-24 z-30 flex justify-center px-4 pointer-events-auto"
         >
-          <div className="px-6 py-3.5 rounded-2xl bg-[#121622]/90 hover:bg-[#1A2232] border border-cyan/50 hover:border-cyan text-white shadow-[0_0_30px_rgba(70,199,222,0.35)] backdrop-blur-xl flex items-center gap-3 transition-all hover:scale-105 cursor-pointer animate-bounce">
-            <div className="w-8 h-8 rounded-full bg-cyan/20 border border-cyan flex items-center justify-center text-cyan">
-              <Volume2 className="w-4 h-4" />
+          <div className="px-5 sm:px-6 py-2.5 sm:py-3.5 rounded-2xl bg-[#121622]/95 hover:bg-[#1A2232] border border-cyan/50 hover:border-cyan text-white shadow-[0_0_30px_rgba(70,199,222,0.35)] backdrop-blur-xl flex items-center gap-3 transition-all cursor-pointer animate-bounce">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-cyan/20 border border-cyan flex items-center justify-center text-cyan shrink-0">
+              <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
             <div className="text-left">
-              <span className="block text-xs font-heading font-black uppercase text-cyan tracking-wider">
-                SOUND RESTRICTED BY BROWSER
+              <span className="block text-[10px] sm:text-xs font-heading font-black uppercase text-cyan tracking-wider">
+                SOUND OFF (BROWSER DEFAULT)
               </span>
-              <span className="block text-[11px] font-sans text-slate-300">
-                Click anywhere on screen to enable full audio 🔊
+              <span className="block text-[10px] sm:text-[11px] font-sans text-slate-300">
+                Tap anywhere on screen to enable audio 🔊
               </span>
             </div>
           </div>
@@ -205,8 +208,8 @@ export default function IntroVideoOverlay({
       )}
 
       {/* Subtle Bottom Watermark */}
-      <div className="absolute bottom-6 left-6 z-20 flex items-center gap-3 pointer-events-none">
-        <span className="text-[11px] font-mono uppercase tracking-[0.22em] text-cyan font-bold bg-[#121622]/80 px-3.5 py-1.5 rounded-lg border border-cyan/30 backdrop-blur-md">
+      <div className="absolute bottom-4 left-4 sm:bottom-6 sm:left-6 z-20 hidden xs:flex items-center gap-3 pointer-events-none">
+        <span className="text-[10px] sm:text-[11px] font-mono uppercase tracking-[0.22em] text-cyan font-bold bg-[#121622]/80 px-3 py-1 rounded-lg border border-cyan/30 backdrop-blur-md">
           VEXORIS '26 · OFFICIAL TEASER
         </span>
       </div>
