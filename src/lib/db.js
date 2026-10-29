@@ -74,8 +74,15 @@ export const deleteRegistration = async (registrationId) => {
   let cloudDeleted = false;
   let cloudError = null;
 
-  // 1. Remove from local storage cache
+  // 1. Remove from local storage cache & track deleted IDs
   if (typeof localStorage !== 'undefined') {
+    const rawDeleted = localStorage.getItem(STORAGE_KEYS.DELETED_REGISTRATIONS);
+    const deletedIds = rawDeleted ? JSON.parse(rawDeleted) : [];
+    if (!deletedIds.includes(registrationId)) {
+      deletedIds.push(registrationId);
+      localStorage.setItem(STORAGE_KEYS.DELETED_REGISTRATIONS, JSON.stringify(deletedIds));
+    }
+
     const rawRegs = localStorage.getItem(STORAGE_KEYS.REGISTRATIONS);
     const regs = rawRegs ? JSON.parse(rawRegs) : [];
     localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(regs.filter(r => r.id !== registrationId)));
@@ -574,6 +581,15 @@ export const getRegistrationsWithParticipants = async ({ eventId = 'all', status
   }
 
   // Clean registrations list
+  if (typeof localStorage !== 'undefined') {
+    const rawDeleted = localStorage.getItem(STORAGE_KEYS.DELETED_REGISTRATIONS);
+    const deletedIds = rawDeleted ? JSON.parse(rawDeleted) : [];
+    if (deletedIds.length > 0) {
+      const deletedSet = new Set(deletedIds);
+      registrations = registrations.filter(r => !deletedSet.has(r.id) && !deletedSet.has(r.reference_code));
+    }
+  }
+
   registrations = registrations.filter(r => 
     !r.reference_code?.startsWith('DEL-') &&
     !r.reference_code?.startsWith('TEST-') &&

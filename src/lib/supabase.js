@@ -10,10 +10,10 @@ const getEnvVar = (key) => {
   return '';
 };
 
-const rawUrl = (getEnvVar('VITE_SUPABASE_URL') || '').trim();
+const rawUrl = (getEnvVar('VITE_SUPABASE_URL') || 'https://qikltzrsesjgqvravvdb.supabase.co').trim();
 // Strip trailing slashes or accidental /rest/v1 paths
 export const supabaseUrl = rawUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
-export const supabaseAnonKey = (getEnvVar('VITE_SUPABASE_ANON_KEY') || '').trim();
+export const supabaseAnonKey = (getEnvVar('VITE_SUPABASE_ANON_KEY') || 'sb_publishable_ek5eupRsVktQgx6u4PGLlA_0uFl6mfm').trim();
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl && 
