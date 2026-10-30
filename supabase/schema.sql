@@ -61,53 +61,56 @@ CREATE INDEX IF NOT EXISTS idx_registrations_event_id ON public.registrations(ev
 CREATE INDEX IF NOT EXISTS idx_registrations_ref_code ON public.registrations(reference_code);
 
 -- 5. Seed Initial 9 Events (Matches the VEXORIS official specification)
-INSERT INTO public.events (id, name, category, format, min_team_size, max_team_size, registration_open, short_description, full_description, district, accent)
+INSERT INTO public.events (id, name, category, format, min_team_size, max_team_size, registration_open, venue, time, date, short_description, full_description, district, accent)
 VALUES
-  ('it-manager', 'IT MANAGER', 'Technical', 'solo', 1, 1, true, 
+  ('it-manager', 'IT MANAGER', 'Technical', 'solo', 1, 1, true, 'Mini Audi', '12:30 PM', 'OCTOBER 30, 2026',
    'The ultimate leadership test of crisis management, strategic budgeting, and tech acumen.',
    'Step into the executive suite of a tech conglomerate under severe digital pressure. IT Manager tests your strategic decision-making, tech resource allocation, stress management, and cross-functional leadership in high-stakes corporate simulations.',
    'District Alpha (Technical Hub)', 'cyan'),
   
-  ('quiz', 'QUIZ', 'Technical', 'group', 2, 2, true,
+  ('quiz', 'QUIZ', 'Technical', 'group', 2, 2, true, 'Room 107', '12:30 PM', 'OCTOBER 30, 2026',
    'Battle of wits across computational history, algorithms, cybersecurity, and emerging tech.',
    'From the early silicon pioneers to neural network architectures, quantum supremacy, and underground cyber culture. Test your technical knowledge in an intense multi-round buzzer tournament.',
    'District Alpha (Technical Hub)', 'cyan'),
   
-  ('funzova', 'FUNZOVA', 'Technical', 'solo', 1, 1, true,
+  ('funzova', 'FUNZOVA', 'Technical', 'solo', 1, 1, true, 'Room 116', '12:30 PM', 'OCTOBER 30, 2026',
    'Unconventional tech-entertainment fusion: blind coding, reverse engineering, and puzzle decoding.',
    'Funzova breaks the monotony of traditional tech challenges. Experience high-speed code relays, blindfolded algorithmic typing, cryptic clue hunts, and quirky engineering problem-solving.',
    'District Alpha (Technical Hub)', 'cyan'),
   
-  ('vextalk', 'VEXTALK', 'Technical', 'solo', 1, 1, true,
+  ('vextalk', 'VEXTALK', 'Technical', 'solo', 1, 1, true, 'Room 106', '12:30 PM', 'OCTOBER 30, 2026',
    'Keynote oratory on frontier technologies, ethical AI, and futuristic urban computing.',
    'The city needs bold voices. VexTalk provides the stage for thought leaders to pitch visionary ideas, dissect emerging tech paradoxes, and persuade audiences through compelling verbal rhetoric and slide design.',
    'District Alpha (Technical Hub)', 'cyan'),
   
-  ('debate', 'DEBATE', 'Technical', 'group', 2, 2, true,
+  ('debate', 'DEBATE', 'Technical', 'group', 2, 2, true, 'Room 212', '12:30 PM', 'OCTOBER 30, 2026',
    'Oxford-style parliamentary clashes on algorithmic governance, privacy, and digital power.',
    'Clash heads on the critical controversies shaping tomorrow’s digital civilisation. Argue for or against motions on AI autonomy, surveillance capitalism, decentralized economics, and cyber warfare.',
    'District Alpha (Technical Hub)', 'cyan'),
   
-  ('bgmi', 'BGMI', 'Gaming', 'group', 3, 4, true,
+  ('bgmi', 'BGMI', 'Gaming', 'group', 3, 4, true, 'Room 206', '12:30 PM', 'OCTOBER 30, 2026',
    'Squad-based tactical battle royale across Erangel and Miramar. Survival is everything.',
    'Drop into high-intensity drop zones. Coordinate rotations, secure airdrop weaponry, and hold choke points in the ultimate tactical mobile esports showdown.',
    'District Beta (Gaming Arena)', 'red'),
   
-  ('nfs', 'NFS', 'Gaming', 'solo', 1, 1, true,
+  ('nfs', 'NFS', 'Gaming', 'solo', 1, 1, true, 'Small Lab', '12:30 PM', 'OCTOBER 30, 2026',
    'High-octane underground street racing. Master drift angles, nitrous timing, and apex turns.',
    'Rubber meets asphalt in a battle of pure precision and nerve. Race through neon-soaked metropolitan expressways and switchbacks under intense tournament bracket conditions.',
    'District Beta (Gaming Arena)', 'red'),
   
-  ('free-fire', 'FREE FIRE', 'Gaming', 'group', 3, 4, true,
+  ('free-fire', 'FREE FIRE', 'Gaming', 'group', 3, 4, true, 'Room 205', '12:30 PM', 'OCTOBER 30, 2026',
    'Premier mobile battle royale championship across Kalahari, Purgatory, and Bermuda.',
    'Fast-paced squad combat across three battleground maps. Outmaneuver opponents and claim the ultimate Booyah in high-stakes survival circles.',
    'District Beta (Gaming Arena)', 'red'),
   
-  ('efootball', 'E-FOOTBALL', 'Gaming', 'solo', 1, 1, true,
+  ('efootball', 'E-FOOTBALL', 'Gaming', 'solo', 1, 1, true, 'Room 112', '12:30 PM', 'OCTOBER 30, 2026',
    'The beautiful virtual game: precise dribbling, counter-attacks, and penalty drama.',
    'Rubber meets turf in direct 1v1 tactical football combat. Test your formation mastery, passing accuracy, and clutch finishing.',
    'District Beta (Gaming Arena)', 'red')
 ON CONFLICT (id) DO UPDATE SET
+  venue = EXCLUDED.venue,
+  time = EXCLUDED.time,
+  date = EXCLUDED.date,
   name = EXCLUDED.name,
   category = EXCLUDED.category,
   format = EXCLUDED.format,

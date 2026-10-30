@@ -4,7 +4,7 @@ import { OFFICIAL_EVENTS } from '../data/events.js';
 export { isSupabaseConfigured, supabase };
 
 const STORAGE_KEYS = {
-  EVENTS: 'vexoris_events_v5',
+  EVENTS: 'vexoris_events_v6',
   REGISTRATIONS: 'vexoris_registrations_v1',
   PARTICIPANTS: 'vexoris_participants_v1',
   DELETED_REGISTRATIONS: 'vexoris_deleted_registrations_v1',
@@ -155,6 +155,10 @@ export const getEvents = async () => {
           return {
             ...official,
             ...item,
+            venue: (item.venue && item.venue !== 'Main Campus Arena') ? item.venue : official?.venue,
+            date: official?.date || item.date,
+            time: official?.time || item.time,
+            coordinator: official?.coordinator || item.coordinator,
             format: isDebate ? 'group' : (isSpecialEsport ? 'group' : (item.format || official?.format || 'solo')),
             minTeamSize: isDebate ? 2 : (isSpecialEsport ? 3 : (item.min_team_size ?? official?.minTeamSize ?? 1)),
             maxTeamSize: isDebate ? 2 : (isSpecialEsport ? 4 : (item.max_team_size ?? official?.maxTeamSize ?? 1)),
@@ -191,6 +195,10 @@ export const getEventById = async (id) => {
   return {
     ...official,
     ...matched,
+    venue: (matched?.venue && matched?.venue !== 'Main Campus Arena') ? matched.venue : (official?.venue || matched?.venue),
+    date: official?.date || matched?.date,
+    time: official?.time || matched?.time,
+    coordinator: official?.coordinator || matched?.coordinator,
     registrationOpen: true, // Unlimited participation (supports 200+ registrations per event)
     ...(lowerId === 'debate' ? {
       format: 'group',
